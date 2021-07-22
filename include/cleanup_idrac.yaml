@@ -1,0 +1,11 @@
+- name: Eject ISO
+  community.general.redfish_command:
+    category: Manager
+    command: VirtualMediaEject
+    baseuri: "{{ idrac_host }}"
+    username: "{{ idrac_user }}"
+    password: "{{ idrac_password }}"
+    virtual_media:
+      image_url: "{{utility_http_scheme}}://{{utility_host_ilo}}:{{utility_http_port}}/{{cluster_name}}/boot-isos/isos/{{inventory_hostname}}.iso"
+    resource_id: "iDRAC.Embedded.1"
+  delegate_to: localhost

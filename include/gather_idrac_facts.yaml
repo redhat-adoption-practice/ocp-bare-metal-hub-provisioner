@@ -1,0 +1,11 @@
+- name: Get iDRAC Inventory
+  dellemc.openmanage.idrac_system_info:
+    idrac_ip: "{{idrac_host}}"
+    idrac_user: "{{idrac_user}}"
+    idrac_password: "{{idrac_password}}"
+  delegate_to: localhost
+  register: idrac_info
+
+- name: Save iDRAC serial
+  set_fact:
+    serial: "{{ilo_info.hw_system_serial}}"
