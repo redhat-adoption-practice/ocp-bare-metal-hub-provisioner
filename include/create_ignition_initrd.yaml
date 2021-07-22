@@ -40,3 +40,4 @@
     #!/bin/bash
     podman run -i --rm -v {{build_dir}}/{{cluster_name}}-combined-ignition.ign:/combined-ignition.ign:z {{coreos_installer_image}} pxe ignition wrap -i /combined-ignition.ign > {{build_dir}}/{{cluster_name}}-combined-initrd
     cp {{build_dir}}/{{cluster_name}}-combined-initrd /var/www/html/{{cluster_name}}/ignition.initrd
+  become: true

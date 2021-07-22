@@ -1,6 +1,7 @@
 ---
 - hosts: utility
   gather_facts: true
+  become: true
   tasks:
     - name: Install utility host packages
       package:
@@ -14,24 +15,6 @@
         state: started
         enabled: yes
       with_items: "{{utility_host_services}}"
-
-    - name: Open HTTP in firewall
-      firewalld:
-        service: http
-        zone: public
-        permanent: yes
-        immediate: yes
-        state: enabled
-      when: manage_firewall
-
-    - name: Open HTTPS in firewall
-      firewalld:
-        service: http
-        zone: public
-        permanent: yes
-        immediate: yes
-        state: enabled
-      when: manage_firewall
 
     - name: Create local bin directory
       file:

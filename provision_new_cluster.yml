@@ -40,6 +40,7 @@
         state: directory
         owner: apache
         group: apache
+      become: true
 
     - name: Fetch RHCOS Root FS Image
       get_url:
@@ -47,6 +48,7 @@
         dest: "/var/www/html/{{cluster_name}}/rhcos-rootfs.img"
         owner: apache
         group: apache
+      become: true
       environment:
         http_proxy: "{{proxy_url}}"
         https_proxy: "{{proxy_url}}"
@@ -57,6 +59,7 @@
         dest: "/var/www/html/{{cluster_name}}/rhcos-kernel"
         owner: apache
         group: apache
+      become: true
       environment:
         http_proxy: "{{proxy_url}}"
         https_proxy: "{{proxy_url}}"
@@ -67,6 +70,7 @@
         dest: "/var/www/html/{{cluster_name}}/rhcos.initrd"
         owner: apache
         group: apache
+      become: true
       environment:
         http_proxy: "{{proxy_url}}"
         https_proxy: "{{proxy_url}}"
@@ -130,6 +134,7 @@
   tasks:
     - name: Copy ignition files
       shell: "cp {{base_dir}}/{{cluster_name}}-install/*.ign /var/www/html/{{cluster_name}} && chown apache:apache /var/www/html/{{cluster_name}}/*.ign"
+      become: true
 
     - name: Upload isolinux-based ISOs
       copy:
@@ -137,6 +142,7 @@
         dest: /var/www/html/{{cluster_name}}/boot-isos
         owner: apache
         group: apache
+      become: true
 
 - hosts: openshift_nodes
   gather_facts: false
