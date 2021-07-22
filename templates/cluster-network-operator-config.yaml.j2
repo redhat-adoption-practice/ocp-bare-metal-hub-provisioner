@@ -1,0 +1,26 @@
+apiVersion: operator.openshift.io/v1
+kind: Network
+metadata:
+  name: cluster
+spec:
+  clusterNetwork:
+  - cidr: {{sdn_settings.cluster_network_cidr|default("10.128.0.0/14")}}
+    hostPrefix: {{sdn_settings.host_prefix|default(23)}}
+  defaultNetwork:
+    ovnKubernetesConfig:
+      genevePort: {{sdn_settings.tunnel_port|default(6081)}}
+      mtu: {{sdn_settings.tunnel_mtu|default(1400)}}
+{% if sdn_settings.get('ipsec_enabled', False) %}
+      ipsecConfig: {}
+{% endif %}
+    type: OVNKubernetes
+  deployKubeProxy: false
+  disableMultiNetwork: false
+  disableNetworkDiagnostics: false
+  logLevel: Normal
+  managementState: Managed
+  observedConfig: null
+  operatorLogLevel: Normal
+  serviceNetwork:
+  - {{sdn_settings.service_network_cidr|default("172.30.0.0/16")}}
+  unsupportedConfigOverrides: null

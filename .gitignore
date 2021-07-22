@@ -1,0 +1,8 @@
+vmware.yml
+ilo.yml
+all.yml
+*.bak
+*.swp
+*.pyc
+secret.yml
+__pycache__

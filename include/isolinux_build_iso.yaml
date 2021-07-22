@@ -1,0 +1,71 @@
+- name: Make build root directories
+  file:
+    dest: "{{item}}"
+    state: directory
+  delegate_to: localhost
+  with_items:
+    - "{{iso_tmp_dir}}"
+    - "{{iso_tmp_dir}}/ocp-iso-build"
+    - "{{iso_tmp_dir}}/ocp-iso-build/isos"
+
+- name: Make iso build directory
+  file:
+    dest: "{{iso_tmp_dir}}/ocp-iso-build/{{short_name|default(inventory_hostname)}}"
+    state: directory
+  delegate_to: localhost
+
+- name: Make iso directory structure
+  file:
+    dest: "{{iso_tmp_dir}}/ocp-iso-build/{{short_name|default(inventory_hostname)}}/{{item}}"
+    state: directory
+  with_items:
+    - isolinux
+    - images
+  delegate_to: localhost
+
+- name: Template isolinux config
+  template:
+    src: "isolinux.cfg.j2"
+    dest: "{{iso_tmp_dir}}/ocp-iso-build/{{short_name|default(inventory_hostname)}}/isolinux/isolinux.cfg"
+  delegate_to: localhost
+
+- name: Template boot.msg
+  template:
+    src: "boot.msg.j2"
+    dest: "{{iso_tmp_dir}}/ocp-iso-build/{{short_name|default(inventory_hostname)}}/isolinux/boot.msg"
+  delegate_to: localhost
+
+- name: Copy syslinux files
+  copy:
+    remote_src: yes
+    src: "/usr/share/syslinux/{{item}}"
+    dest: "{{iso_tmp_dir}}/ocp-iso-build/{{short_name|default(inventory_hostname)}}/isolinux/{{item}}"
+  delegate_to: localhost
+  with_items: "{{isolinux_files}}"
+
+- name: Copy RHCOS kernel
+  copy:
+    remote_src: yes
+    src: "/var/www/html/{{cluster_name}}/rhcos-kernel"
+    dest: "{{iso_tmp_dir}}/ocp-iso-build/{{short_name|default(inventory_hostname)}}/images/vmlinuz"
+  delegate_to: localhost
+
+- name: Copy RHCOS Ramdisk
+  copy:
+    remote_src: yes
+    src: "/var/www/html/{{cluster_name}}/rhcos.initrd"
+    dest: "{{iso_tmp_dir}}/ocp-iso-build/{{short_name|default(inventory_hostname)}}/images/initramfs.img"
+  delegate_to: localhost
+
+- name: Copy Ignition Ramdisk
+  copy:
+    remote_src: yes
+    src: "/var/www/html/{{cluster_name}}/ignition.initrd"
+    dest: "{{iso_tmp_dir}}/ocp-iso-build/{{short_name|default(inventory_hostname)}}/images/ignition.initrd"
+  delegate_to: localhost
+  when: hostvars['localhost'].additional_ignition_fragments
+
+- name: Create ISO image
+  shell:
+    cmd: 'genisoimage -U -r -v -T -J -joliet-long -V "RHCOS" -volset "RHCOS" -A "RHCOS" -b isolinux/isolinux.bin -c isolinux/boot.cat -no-emul-boot -boot-load-size 4 -boot-info-table -no-emul-boot -o {{iso_tmp_dir}}/ocp-iso-build/isos/{{inventory_hostname}}.iso {{iso_tmp_dir}}/ocp-iso-build/{{short_name|default(inventory_hostname)}}'
+  delegate_to: localhost

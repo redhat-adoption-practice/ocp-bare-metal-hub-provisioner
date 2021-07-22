@@ -1,0 +1,36 @@
+apiVersion: v1
+baseDomain: {{base_domain}}
+compute:
+- hyperthreading: Enabled
+  name: worker
+  replicas: 0
+controlPlane:
+  hyperthreading: Enabled
+  name: master
+  replicas: 3
+metadata:
+  name: {{cluster_name}}
+networking:
+  clusterNetwork:
+  - cidr: {{sdn_settings.cluster_network_cidr|default('10.128.0.0/14')}}
+    hostPrefix: {{sdn_settings.host_prefix|default(23)}}
+  networkType: {{sdn_settings.network_plugin|default('OVNKubernetes')}}
+  serviceNetwork:
+  - {{sdn_settings.service_network_cidr|default("172.30.0.0/16")}}
+{% if proxy_enabled %}
+proxy:
+  httpProxy: {{proxy_url}}
+  httpsProxy: {{proxy_url}}
+  noProxy: {{no_proxy}}
+{% endif %}
+{% if tls_additional_cas %}
+additionalTrustBundle: |
+{% for ca_cert in tls_additional_cas %}
+  {{ca_cert|indent(width=2)}}
+{% endfor %}
+{% endif %}
+platform:
+  none: {}
+fips: {{fips_mode}}
+sshKey: "{{utility_ssh_public_key}}"
+pullSecret: '{{pull_secret}}'

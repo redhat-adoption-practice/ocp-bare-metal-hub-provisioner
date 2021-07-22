@@ -1,0 +1,18 @@
+variant: fcos
+version: 1.1.0
+
+storage:
+  files:
+{% for key, value in additional_ignition.items() %}
+{% if 'files' in value %}
+    {{ value.files|to_yaml|trim|indent(4) }}
+{% endif %}
+{% endfor %}
+
+systemd:
+  units:
+{% for key, value in additional_ignition.items() %}
+{% if 'systemd_units' in value %}
+    {{ value.systemd_units|to_yaml|trim|indent(4) }}
+{% endif %}
+{% endfor %}

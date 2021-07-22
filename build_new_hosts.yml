@@ -1,0 +1,73 @@
+---
+- hosts: utility
+  gather_facts: true
+  tasks:
+    - name: Set up ignition fragment list
+      set_fact:
+        additional_ignition_fragments: []
+
+    - name: Create transpiler fakeroot directory
+      file:
+        path: "{{base_dir}}/{{cluster_name}}-transpile"
+        state: directory
+      when: transpile_nic_configs
+
+    - name: Create TLS CA initrd
+      include_tasks: "include/tls_initrd_patch.yaml"
+      when: tls_additional_cas
+
+    - name: Create disk wiping initrd
+      include_tasks: "include/wipe_disks_patch.yaml"
+      when: wipe_disks == true
+
+    - name: Compile combined ignition
+      include_tasks: "include/create_ignition_initrd.yaml"
+      when: additional_ignition_fragments
+
+- hosts: openshift_nodes
+  gather_facts: false
+  tasks:
+    - name: Gather node information
+      include_tasks: "include/gather_{{pm_type}}_facts.yaml"
+      when: provision == true
+
+    - name: Build isolinux artifacts
+      include_tasks: include/isolinux_build_iso.yaml
+      when: provision == true
+
+    - name: Transpile NIC configs
+      include_tasks: include/transpile_nic_configs.yaml
+      when: transpile_nic_configs == true and provision == true
+
+- hosts: utility
+  gather_facts: true
+  tasks:
+    - name: Copy ignition files
+      shell: "cp {{base_dir}}/{{cluster_name}}-install/*.ign /var/www/html/{{cluster_name}} && chown apache:apache /var/www/html/{{cluster_name}}/*.ign"
+
+    - name: Upload isolinux-based ISOs
+      copy:
+        src: "{{iso_tmp_dir}}/ocp-iso-build/isos"
+        dest: /var/www/html/{{cluster_name}}/boot-isos
+        owner: apache
+        group: apache
+
+- hosts: openshift_nodes
+  gather_facts: false
+  tasks:
+    - name: Boot nodes
+      include_tasks: "include/boot_{{pm_type}}.yaml"
+      when: provision == true
+
+- hosts: openshift_nodes
+  gather_facts: false
+  tasks:
+    - name: Do post-install node cleanup
+      include_tasks: "include/cleanup_{{pm_type}}.yaml"
+      when: provision == true
+
+- hosts: utility
+  gather_facts: true
+  tasks:
+    - name: Clean up utilty host
+      include_tasks: "include/cleanup_utility.yaml"

@@ -1,0 +1,60 @@
+- name: Wait for RHCOS to come up
+  wait_for_connection:
+    delay: 120
+    timeout: 600
+
+- name: Unlock CDROM from RHCOS
+  shell: "eject -i off"
+  become: true
+
+- name: Remove ISO from VM
+  vmware_guest:
+    hostname: "{{vcenter_host}}"
+    username: "{{vcenter_user}}"
+    password: "{{vcenter_password}}"
+    validate_certs: "{{vmware_verify_tls|default(false)}}"
+    datacenter: "{{vmware_datacenter}}"
+    name: "{{short_name|default(inventory_hostname)}}"
+    cdrom:
+      - type: none
+        controller_number: 0
+        unit_number: 0
+  delegate_to: localhost
+  register: vmware_task
+  until: vmware_task is not failed
+  retries: 5
+  delay: 5
+
+- name: Remove ISO from vSphere (Central Datastore)
+  vsphere_file:
+    hostname: "{{vcenter_host}}"
+    username: "{{vcenter_user}}"
+    password: "{{vcenter_password}}"
+    validate_certs: "{{vmware_verify_tls|default(false)}}"
+    datacenter: "{{vmware_datacenter}}"
+    datastore: "{{vmware_datastore}}"
+    path: "{{vmware_iso_path}}/{{inventory_hostname}}.iso"
+    state: absent
+  when: vmware_iso_storage == "central_datastore"
+  delegate_to: localhost
+  register: vmware_task
+  until: vmware_task is not failed
+  retries: 5
+  delay: 5
+
+- name: Remove ISO from vSphere (Central Datastore)
+  vsphere_file:
+    hostname: "{{vcenter_host}}"
+    username: "{{vcenter_user}}"
+    password: "{{vcenter_password}}"
+    validate_certs: "{{vmware_verify_tls|default(false)}}"
+    datacenter: "{{vmware_datacenter}}"
+    datastore: "{{converged_target_datastore}}"
+    path: "{{converged_target_folder}}/{{inventory_hostname}}-boot.iso"
+    state: absent
+  when: vmware_iso_storage == "converged_datastore"
+  delegate_to: localhost
+  register: vmware_task
+  until: vmware_task is not failed
+  retries: 5
+  delay: 5

@@ -1,0 +1,142 @@
+---
+- hosts: utility
+  gather_facts: true
+  tasks:
+    - name: Install utility host packages
+      package:
+        name: "{{item}}"
+        state: installed
+      with_items: "{{utility_host_packages}}"
+
+    - name: Enable and start utility host services
+      service:
+        name: "{{item}}"
+        state: started
+        enabled: yes
+      with_items: "{{utility_host_services}}"
+
+    - name: Open HTTP in firewall
+      firewalld:
+        service: http
+        zone: public
+        permanent: yes
+        immediate: yes
+        state: enabled
+      when: manage_firewall
+
+    - name: Open HTTPS in firewall
+      firewalld:
+        service: http
+        zone: public
+        permanent: yes
+        immediate: yes
+        state: enabled
+      when: manage_firewall
+
+    - name: Create local bin directory
+      file:
+        dest: "{{bin_dir}}"
+        state: directory
+
+    - name: Fetch openshift-install binary
+      get_url:
+        url: "{{source_urls['installer']}}"
+        dest: "{{base_dir}}/openshift-install-linux.tar.gz"
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+
+    - name: Fetch openshift client binaries
+      get_url:
+        url: "{{source_urls['client']}}"
+        dest: "{{base_dir}}/openshift-client-linux.tar.gz"
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+
+    - name: Extract openshift-install
+      unarchive:
+        creates: "{{bin_dir}}/openshift-install"
+        dest: "{{bin_dir}}"
+        exclude: README.md
+        remote_src: yes
+        src: "{{base_dir}}/openshift-install-linux.tar.gz"
+
+    - name: Extract openshift clients
+      unarchive:
+        creates: "{{bin_dir}}/oc"
+        dest: "{{bin_dir}}"
+        exclude: README.md
+        remote_src: yes
+        src: "{{base_dir}}/openshift-client-linux.tar.gz"
+
+    - name: Clone transpiler repo
+      git:
+        repo: https://github.com/ashcrow/filetranspiler.git
+        version: 1.1.2
+        dest: "{{base_dir}}/filetranspiler-git"
+        force: yes
+      when: transpile_nic_configs == true
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+
+    - name: Build transpiler image (Docker)
+      docker_image:
+        name: filetranspiler
+        build:
+          path: "{{base_dir}}/filetranspiler-git"
+        source: build
+      when: transpile_nic_configs == true and utility_host_container_runtime == "docker"
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+
+    - name: Build transpiler image (Podman)
+      podman_image:
+        name: filetranspiler
+        path: "{{base_dir}}/filetranspiler-git"
+        build:
+          format: docker
+      when: transpile_nic_configs == true and utility_host_container_runtime == "podman"
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+
+    - name: Pull coreos-installer image (Docker)
+      docker_image:
+        source: pull
+        name: "{{coreos_installer_image}}"
+        state: present
+      when: utility_host_container_runtime == "docker" and tls_additional_cas
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+
+    - name: Pull coreos-installer image (Podman)
+      podman_image:
+        name: "{{coreos_installer_image}}"
+        state: present
+      when: utility_host_container_runtime == "podman" and tls_additional_cas
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+
+    - name: Pull fcct image (Docker)
+      docker_image:
+        source: pull
+        name: "{{fcct_image}}"
+        state: present
+      when: utility_host_container_runtime == "docker" and tls_additional_cas
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+
+    - name: Pull fcct image (Podman)
+      podman_image:
+        name: "{{fcct_image}}"
+        state: present
+      when: utility_host_container_runtime == "podman" and tls_additional_cas
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"

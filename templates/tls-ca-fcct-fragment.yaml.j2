@@ -1,0 +1,25 @@
+tls:
+  files:
+    - path: /etc/pki/ca-trust/source/anchors/install-ca.pem
+      mode: 0755
+      contents:
+        inline: |
+{% for ca_cert in tls_additional_cas %}
+          {{ca_cert|indent(width=10)}}
+{% endfor %}
+  
+  systemd_units:
+    - name: setup-tls-ca-trust.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Run before install
+        After=coreos-installer-pre.target
+        Before=coreos-installer.service
+    
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/bin/update-ca-trust
+    
+        [Install]
+        RequiredBy=coreos-installer.service

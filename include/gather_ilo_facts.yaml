@@ -1,0 +1,25 @@
+- name: Get ILO Info
+  hpilo_info:
+    host: "{{ilo_host}}"
+    login: "{{ilo_user}}"
+    password: "{{ilo_password}}"
+  delegate_to: localhost
+  register: ilo_info
+  until: ilo_info is not failed
+  retries: 5
+  delay: 10
+
+- name: Save ILO serial (padded)
+  set_fact:
+    serial: "{{'%-16s'|format(ilo_info.hw_system_serial)}}"
+  when: ilo_pad_serial == true
+
+- name: Save ILO serial (non-padded)
+  set_fact:
+    serial: "{{ilo_info.hw_system_serial}}"
+  when: ilo_pad_serial == false
+
+- name: Fail on ILO Serial Mismatch
+  fail:
+    msg: "Serial number {{ serial|trim }} does not match serial_number: {{ serial_number|default('undefined') }} from host_vars"
+  when: verify_ilo_serial_number|default(true) == true and serial|trim != serial_number|default('undefined')

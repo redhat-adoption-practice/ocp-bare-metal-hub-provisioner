@@ -1,0 +1,184 @@
+---
+- hosts: utility
+  gather_facts: true
+  vars:
+    reprovision: no
+  tasks:
+    - name: Set up ignition fragment list
+      set_fact:
+        additional_ignition_fragments: []
+
+    - name: Clean up old install directory when reprovisioning
+      file:
+        path: "{{base_dir}}/{{cluster_name}}-install"
+        state: absent
+      when: reprovision == "yes"
+
+    - name: Check if installation config directory exists
+      stat:
+        path: "{{base_dir}}/{{cluster_name}}-install"
+      register: stat_result
+
+    - name: Fail if conflicting install directory exists
+      fail:
+        msg: "{{base_dir}}/{{cluster_name}}-install exists! Remove before creating a new cluster."
+      when: stat_result.stat.exists
+
+    - name: Create installation config directory
+      file:
+        path: "{{base_dir}}/{{cluster_name}}-install"
+        state: directory
+
+    - name: Create install-config.yaml
+      template:
+        src: install-config.yaml.j2
+        dest: "{{base_dir}}/{{cluster_name}}-install-config.yaml"
+
+    - name: Create per-cluster webroot
+      file:
+        path: "/var/www/html/{{cluster_name}}"
+        state: directory
+        owner: apache
+        group: apache
+
+    - name: Fetch RHCOS Root FS Image
+      get_url:
+        url: "{{source_urls['rhcos_image']}}"
+        dest: "/var/www/html/{{cluster_name}}/rhcos-rootfs.img"
+        owner: apache
+        group: apache
+      environment:
+        http_proxy: "{{proxy_url}}"
+        https_proxy: "{{proxy_url}}"
+
+    - name: Fetch RHCOS Kernel
+      get_url:
+        url: "{{source_urls['rhcos_kernel']}}"
+        dest: "/var/www/html/{{cluster_name}}/rhcos-kernel"
+        owner: apache
+        group: apache
+      environment:
+        http_proxy: "{{proxy_url}}"
+        https_proxy: "{{proxy_url}}"
+
+    - name: Fetch RHCOS Ramdisk
+      get_url:
+        url: "{{source_urls['rhcos_initrd']}}"
+        dest: "/var/www/html/{{cluster_name}}/rhcos.initrd"
+        owner: apache
+        group: apache
+      environment:
+        http_proxy: "{{proxy_url}}"
+        https_proxy: "{{proxy_url}}"
+
+    - name: Create TLS CA ignition
+      include_tasks: "include/tls_ignition_patch.yaml"
+      when: tls_additional_cas
+
+    - name: Create disk wiping ignition
+      include_tasks: "include/wipe_disks_patch.yaml"
+      when: wipe_disks == true
+
+    - name: Compile combined ignition
+      include_tasks: "include/create_ignition_initrd.yaml"
+      when: additional_ignition_fragments
+
+    - name: Create transpiler fakeroot directory
+      file:
+        path: "{{base_dir}}/{{cluster_name}}-transpile"
+        state: directory
+      when: transpile_nic_configs
+
+    - name: Copy install-config
+      copy:
+        src: "{{base_dir}}/{{cluster_name}}-install-config.yaml"
+        dest: "{{base_dir}}/{{cluster_name}}-install/install-config.yaml"
+        remote_src: yes
+
+    - name: Create manifests
+      shell: "{{bin_dir}}/openshift-install --dir={{base_dir}}/{{cluster_name}}-install create manifests"
+
+    - name: Create custom Network Operator config
+      template:
+        src: cluster-network-operator-config.yaml.j2
+        dest: "{{base_dir}}/{{cluster_name}}-install/manifests/cluster-network-03-config.yml"
+      when: customize_network_operator_config
+
+    - name: Set masters to unschedulable
+      shell: "sed -i s/true/false/ {{base_dir}}/{{cluster_name}}-install/manifests/cluster-scheduler-02-config.yml"
+
+    - name: Create base ignition configs
+      shell: "{{bin_dir}}/openshift-install --dir={{base_dir}}/{{cluster_name}}-install create ignition-configs"
+
+- hosts: openshift_nodes
+  gather_facts: false
+  tasks:
+    - name: Gather node information
+      include_tasks: "include/gather_{{pm_type}}_facts.yaml"
+      when: provision == true
+
+    - name: Build isolinux artifacts
+      include_tasks: include/isolinux_build_iso.yaml
+      when: provision == true
+
+    - name: Transpile NIC configs
+      include_tasks: include/transpile_nic_configs.yaml
+      when: transpile_nic_configs == true and provision == true
+
+- hosts: utility
+  gather_facts: true
+  tasks:
+    - name: Copy ignition files
+      shell: "cp {{base_dir}}/{{cluster_name}}-install/*.ign /var/www/html/{{cluster_name}} && chown apache:apache /var/www/html/{{cluster_name}}/*.ign"
+
+    - name: Upload isolinux-based ISOs
+      copy:
+        src: "{{iso_tmp_dir}}/ocp-iso-build/isos"
+        dest: /var/www/html/{{cluster_name}}/boot-isos
+        owner: apache
+        group: apache
+
+- hosts: openshift_nodes
+  gather_facts: false
+  tasks:
+    - name: Boot nodes
+      include_tasks: "include/boot_{{pm_type}}.yaml"
+      when: provision == true
+
+- hosts: utility
+  gather_facts: true
+  tasks:
+    - name: Wait for bootstrap
+      shell: "{{bin_dir}}/openshift-install --dir={{base_dir}}/{{cluster_name}}-install wait-for bootstrap-complete"
+      register: result
+      until: result.rc == 0
+      retries: 3
+      delay: 5
+
+- hosts: openshift_nodes
+  gather_facts: false
+  tasks:
+    - name: Do post-install node cleanup
+      include_tasks: "include/cleanup_{{pm_type}}.yaml"
+      when: provision == true
+
+- hosts: utility
+  gather_facts: true
+  tasks:
+    - name: Clean up utilty host
+      include_tasks: "include/cleanup_utility.yaml"
+
+- hosts: bootstraps
+  gather_facts: false
+  tasks:
+    - name: Power off bootstrap node(s)
+      vmware_guest_powerstate:
+        hostname: "{{vcenter_host}}"
+        username: "{{vcenter_user}}"
+        password: "{{vcenter_password}}"
+        validate_certs: no
+        name: "{{short_name|default(inventory_hostname)}}"
+        state: powered-off
+        force: yes
+      delegate_to: localhost
+      when: provision == true

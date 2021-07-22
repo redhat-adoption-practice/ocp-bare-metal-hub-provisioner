@@ -1,0 +1,31 @@
+wipe_disks:
+  files:
+    - path: /usr/local/bin/wipe-disks.sh
+      mode: 0755
+      contents:
+        inline: |
+          #!/bin/bash
+          # Wipe candidate disks
+          # TODO: Make this a configurable device list
+          for device in sd{a..z} vd{a..z} hd{a..z} nvme{0..9}n1; do
+              if [ -b "/dev/$device" ]; then
+                  echo "Zeroing first 128M of /dev/$device"
+                  dd if=/dev/zero of=/dev/$device bs=1M count=128
+              fi
+          done
+  
+  systemd_units:
+    - name: wipe-disks.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=Run before install
+        After=coreos-installer-pre.target
+        Before=coreos-installer.service
+    
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/wipe-disks.sh
+    
+        [Install]
+        RequiredBy=coreos-installer.service

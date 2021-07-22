@@ -1,0 +1,72 @@
+- name: Create fakeroot directories for host
+  file:
+    path: "{{base_dir}}/ocp-transpile/{{short_name|default(inventory_hostname)}}{{item}}"
+    state: directory
+  with_items:
+    - ''
+    - '/etc'
+    - '/etc/sysconfig'
+    - '/etc/sysconfig/network-scripts'
+  delegate_to: localhost
+  when: transpile_nic_configs
+
+- name: Create /etc/hostname file
+  copy:
+    dest: "{{base_dir}}/ocp-transpile/{{short_name|default(inventory_hostname)}}/etc/hostname"
+    content: "{{inventory_hostname}}"
+  delegate_to: localhost
+  when: transpile_nic_configs
+
+- name: Create ifcfg files for standalone interfaces
+  template:
+    src: ifcfg-standalone.j2
+    dest: "{{base_dir}}/ocp-transpile/{{short_name|default(inventory_hostname)}}/etc/sysconfig/network-scripts/ifcfg-{{item}}"
+  delegate_to: localhost
+  with_items: "{{standalone_interfaces}}"
+  when: transpile_nic_configs and standalone_interfaces is defined
+
+- name: Create ifcfg files for vlan interfaces
+  template:
+    src: ifcfg-vlan.j2
+    dest: "{{base_dir}}/ocp-transpile/{{short_name|default(inventory_hostname)}}/etc/sysconfig/network-scripts/ifcfg-{{item.device}}.{{item.tag}}"
+  delegate_to: localhost
+  with_items: "{{vlans}}"
+  when: transpile_nic_configs and vlans is defined
+
+- name: Create ifcfg files for bond interfaces
+  template:
+    src: ifcfg-bond.j2
+    dest: "{{base_dir}}/ocp-transpile/{{short_name|default(inventory_hostname)}}/etc/sysconfig/network-scripts/ifcfg-{{item.name}}"
+  delegate_to: localhost
+  with_items: "{{bonds}}"
+  when: transpile_nic_configs and bonds is defined
+
+- name: Create ifcfg files for bond members
+  include_tasks: include/bond_member.yml
+  loop: "{{bonds}}"
+  loop_control:
+    loop_var: bond
+  when: transpile_nic_configs and bonds is defined
+
+- name: Add IP configuration to ifcfg files
+  blockinfile:
+    marker: '# {mark} IP INFO'
+    block: |
+      IPADDR={{item.ip_address}}
+      NETMASK={{item.ip_netmask}}
+      {% if 'gateway' in item %}
+      GATEWAY={{item.gateway}}
+      DNS1={{nameservers[0]}}
+      DNS2={{nameservers[1]}}
+      {% endif %}
+    path: "{{base_dir}}/ocp-transpile/{{short_name|default(inventory_hostname)}}/etc/sysconfig/network-scripts/ifcfg-{{item.name}}"
+  with_items: "{{interfaces}}"
+  delegate_to: localhost
+  when: transpile_nic_configs and interfaces is defined
+
+- name: Customize {{role}} ignition config
+  shell:
+    cmd: "$(which {{utility_host_container_runtime}}) run --rm -ti --volume {{base_dir}}/{{cluster_name}}-install:/ignition_configs:z --volume {{base_dir}}/ocp-transpile/{{short_name|default(inventory_hostname)}}:/fakeroot:z localhost/filetranspiler:latest -i /ignition_configs/{{role}}.ign -f /fakeroot -o /ignition_configs/{{short_name|default(inventory_hostname)}}.ign"
+  delegate_to: localhost
+  when: transpile_nic_configs
+
