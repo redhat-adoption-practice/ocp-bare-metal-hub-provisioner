@@ -50,8 +50,8 @@
         group: apache
       become: true
       environment:
-        http_proxy: "{{proxy_url}}"
-        https_proxy: "{{proxy_url}}"
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
 
     - name: Fetch RHCOS Kernel
       get_url:
@@ -61,8 +61,8 @@
         group: apache
       become: true
       environment:
-        http_proxy: "{{proxy_url}}"
-        https_proxy: "{{proxy_url}}"
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
 
     - name: Fetch RHCOS Ramdisk
       get_url:
@@ -72,8 +72,8 @@
         group: apache
       become: true
       environment:
-        http_proxy: "{{proxy_url}}"
-        https_proxy: "{{proxy_url}}"
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
 
     - name: Create TLS CA ignition
       include_tasks: "include/tls_ignition_patch.yaml"
