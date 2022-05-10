@@ -53,45 +53,12 @@
         remote_src: yes
         src: "{{base_dir}}/openshift-client-linux.tar.gz"
 
-    - name: Clone transpiler repo
-      git:
-        repo: https://github.com/ashcrow/filetranspiler.git
-        version: 1.1.2
-        dest: "{{base_dir}}/filetranspiler-git"
-        force: yes
-      when: transpile_nic_configs == true
-      environment:
-        http_proxy: "{{proxy_url|default(omit)}}"
-        https_proxy: "{{proxy_url|default(omit)}}"
-
-    - name: Build transpiler image (Docker)
-      docker_image:
-        name: filetranspiler
-        build:
-          path: "{{base_dir}}/filetranspiler-git"
-        source: build
-      when: transpile_nic_configs == true and utility_host_container_runtime == "docker"
-      environment:
-        http_proxy: "{{proxy_url|default(omit)}}"
-        https_proxy: "{{proxy_url|default(omit)}}"
-
-    - name: Build transpiler image (Podman)
-      podman_image:
-        name: filetranspiler
-        path: "{{base_dir}}/filetranspiler-git"
-        build:
-          format: docker
-      when: transpile_nic_configs == true and utility_host_container_runtime == "podman"
-      environment:
-        http_proxy: "{{proxy_url|default(omit)}}"
-        https_proxy: "{{proxy_url|default(omit)}}"
-
     - name: Pull coreos-installer image (Docker)
       docker_image:
         source: pull
         name: "{{coreos_installer_image}}"
         state: present
-      when: utility_host_container_runtime == "docker" and tls_additional_cas
+      when: utility_host_container_runtime == "docker"
       environment:
         http_proxy: "{{proxy_url|default(omit)}}"
         https_proxy: "{{proxy_url|default(omit)}}"
@@ -100,7 +67,7 @@
       podman_image:
         name: "{{coreos_installer_image}}"
         state: present
-      when: utility_host_container_runtime == "podman" and tls_additional_cas
+      when: utility_host_container_runtime == "podman"
       environment:
         http_proxy: "{{proxy_url|default(omit)}}"
         https_proxy: "{{proxy_url|default(omit)}}"
@@ -110,7 +77,7 @@
         source: pull
         name: "{{fcct_image}}"
         state: present
-      when: utility_host_container_runtime == "docker" and tls_additional_cas
+      when: utility_host_container_runtime == "docker"
       environment:
         http_proxy: "{{proxy_url|default(omit)}}"
         https_proxy: "{{proxy_url|default(omit)}}"
@@ -119,7 +86,7 @@
       podman_image:
         name: "{{fcct_image}}"
         state: present
-      when: utility_host_container_runtime == "podman" and tls_additional_cas
+      when: utility_host_container_runtime == "podman"
       environment:
         http_proxy: "{{proxy_url|default(omit)}}"
         https_proxy: "{{proxy_url|default(omit)}}"

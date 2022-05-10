@@ -87,12 +87,6 @@
       include_tasks: "include/create_ignition_initrd.yaml"
       when: additional_ignition_fragments
 
-    - name: Create transpiler fakeroot directory
-      file:
-        path: "{{base_dir}}/{{cluster_name}}-transpile"
-        state: directory
-      when: transpile_nic_configs
-
     - name: Copy install-config
       copy:
         src: "{{base_dir}}/{{cluster_name}}-install-config.yaml"
@@ -124,10 +118,6 @@
     - name: Build isolinux artifacts
       include_tasks: include/isolinux_build_iso.yaml
       when: provision == true
-
-    - name: Transpile NIC configs
-      include_tasks: include/transpile_nic_configs.yaml
-      when: transpile_nic_configs == true and provision == true
 
 - hosts: utility
   gather_facts: true

@@ -1,6 +1,0 @@
-- name: Create member ifcfg file
-  template:
-    src: ifcfg-member.j2
-    dest: "{{base_dir}}/ocp-transpile/{{short_name|default(inventory_hostname)}}/etc/sysconfig/network-scripts/ifcfg-{{item}}"
-  delegate_to: localhost
-  with_items: "{{bond.interfaces}}"

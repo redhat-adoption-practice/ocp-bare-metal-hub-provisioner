@@ -6,12 +6,6 @@
       set_fact:
         additional_ignition_fragments: []
 
-    - name: Create transpiler fakeroot directory
-      file:
-        path: "{{base_dir}}/{{cluster_name}}-transpile"
-        state: directory
-      when: transpile_nic_configs
-
     - name: Create TLS CA initrd
       include_tasks: "include/tls_initrd_patch.yaml"
       when: tls_additional_cas
@@ -34,10 +28,6 @@
     - name: Build isolinux artifacts
       include_tasks: include/isolinux_build_iso.yaml
       when: provision == true
-
-    - name: Transpile NIC configs
-      include_tasks: include/transpile_nic_configs.yaml
-      when: transpile_nic_configs == true and provision == true
 
 - hosts: utility
   gather_facts: true
