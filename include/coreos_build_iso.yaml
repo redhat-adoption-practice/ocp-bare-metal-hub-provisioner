@@ -21,6 +21,11 @@
       - "--dest-ignition /install/{{role}}.ign"
     coreos_kernel_args: "{{ lookup('template', 'kargs.j2').split() }}"
 
+- name: Check for live ignition file
+  stat:
+    path: "{{files_dir}}/combined-ignition.ign"
+  register: live_ignition_file
+
 - name: Build customized ISO (4.10+)
   shell: |
     #!/bin/bash
@@ -34,7 +39,7 @@
       {{coreos_installer_image}} \
       iso customize -f /iso/{{inventory_hostname}}.iso \
       {{ coreos_installer_args|join(' ')|default(omit) }} \
-      {% if additional_ignition_fragments %}
+      {% if live_ignition_file.stat.exists %}
       --live-ignition /data/combined-ignition.ign \
       {% endif %}
       --live-karg-append coreos.live.rootfs_url={{utility_http_scheme}}://{{utility_host}}:{{utility_http_port}}/{{cluster_name}}/rhcos-rootfs.img \
@@ -85,4 +90,4 @@
 
   become: true
   delegate_to: localhost
-  when: source_urls.rhcos_image is defined and additional_ignition_fragments != []
+  when: source_urls.rhcos_image is defined and live_ignition_file.stat.exists
