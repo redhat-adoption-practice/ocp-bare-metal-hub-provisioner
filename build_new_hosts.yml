@@ -14,6 +14,10 @@
       include_tasks: "include/wipe_disks_patch.yaml"
       when: wipe_disks == true
 
+    - name: Create installer customization ignition
+      include_tasks: "include/installer_customization_patch.yaml"
+      when: enable_kargs_in_dest == true and source_urls.rhcos_image is defined
+
     - name: Compile combined ignition
       include_tasks: "include/create_live_ignition.yaml"
       when: additional_ignition_fragments
