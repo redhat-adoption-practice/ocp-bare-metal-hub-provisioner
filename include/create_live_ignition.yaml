@@ -1,0 +1,36 @@
+- name: Build temp directory
+  file:
+    path: "{{ files_dir }}/fcct_fragment_read"
+    state: directory
+
+- name: Copy fragments to read directory
+  copy:
+    src: "{{ item }}"
+    dest: "{{ files_dir }}/fcct_fragment_read/{{ ansible_loop.index }}.yml"
+  loop: "{{ additional_ignition_fragments }}"
+  loop_control:
+    extended: yes
+
+- name: Read FCCT Fragments into Ansible
+  include_vars:
+    dir: "{{ files_dir }}/fcct_fragment_read"
+    name: additional_ignition
+
+- name: Debug ignition
+  debug:
+   var: additional_ignition
+
+- name: Remove temp directory
+  file:
+    path: "{{ files_dir }}/fcct_fragment_read"
+    state: absent
+
+- name: Render Combined FCCT Config
+  template:
+    src: fcct-wrapper.yaml.j2
+    dest: "{{files_dir}}/combined-fcct.fcc"
+
+- name: Generate Combined Ignition
+  shell: |
+    #!/bin/bash
+    podman run -i --rm {{fcct_image}} --pretty --strict < {{files_dir}}/combined-fcct.fcc > {{files_dir}}/combined-ignition.ign

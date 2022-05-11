@@ -15,7 +15,7 @@
       when: wipe_disks == true
 
     - name: Compile combined ignition
-      include_tasks: "include/create_ignition_initrd.yaml"
+      include_tasks: "include/create_live_ignition.yaml"
       when: additional_ignition_fragments
 
 - hosts: openshift_nodes
@@ -25,22 +25,24 @@
       include_tasks: "include/gather_{{pm_type}}_facts.yaml"
       when: provision == true
 
-    - name: Build isolinux artifacts
-      include_tasks: include/isolinux_build_iso.yaml
+    - name: Build ISO
+      include_tasks: include/coreos_build_iso.yaml
       when: provision == true
 
 - hosts: utility
   gather_facts: true
   tasks:
     - name: Copy ignition files
-      shell: "cp {{base_dir}}/{{cluster_name}}-install/*.ign /var/www/html/{{cluster_name}} && chown apache:apache /var/www/html/{{cluster_name}}/*.ign"
+      shell: "cp {{installer_dir}}/*.ign /var/www/html/{{cluster_name}} && chown apache:apache /var/www/html/{{cluster_name}}/*.ign"
+      become: true
 
-    - name: Upload isolinux-based ISOs
+    - name: Upload ISOs
       copy:
         src: "{{iso_tmp_dir}}/ocp-iso-build/isos"
         dest: /var/www/html/{{cluster_name}}/boot-isos
         owner: apache
         group: apache
+      become: true
 
 - hosts: openshift_nodes
   gather_facts: false

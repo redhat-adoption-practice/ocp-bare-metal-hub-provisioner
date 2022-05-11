@@ -1,0 +1,21 @@
+variant: openshift
+version: 4.8.0
+metadata:
+  name: master-disk-encryption
+  labels:
+    machineconfiguration.openshift.io/role: master
+boot_device:
+  luks: 
+{% if encryption_use_tpm|default(false) %}
+    tpm2: true
+{% endif %}
+{% if encryption_use_tang|default(false) %}
+    tang:
+{% for source in tang_sources|default([]) %}
+      - url: {{ source.url }}
+        thumbprint: {{ source.thumbprint }}
+{% endfor %}
+{% endif %}
+    threshold: {{ encryption_threshold | default(1) }}
+openshift:
+  fips: {{ fips_mode }}

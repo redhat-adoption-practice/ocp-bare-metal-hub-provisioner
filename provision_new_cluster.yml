@@ -10,29 +10,41 @@
 
     - name: Clean up old install directory when reprovisioning
       file:
-        path: "{{base_dir}}/{{cluster_name}}-install"
+        path: "{{installer_dir}}"
+        state: absent
+      when: reprovision == "yes"
+
+    - name: Clean up old files directory when reprovisioning
+      file:
+        path: "{{files_dir}}"
         state: absent
       when: reprovision == "yes"
 
     - name: Check if installation config directory exists
       stat:
-        path: "{{base_dir}}/{{cluster_name}}-install"
+        path: "{{installer_dir}}"
       register: stat_result
 
     - name: Fail if conflicting install directory exists
       fail:
-        msg: "{{base_dir}}/{{cluster_name}}-install exists! Remove before creating a new cluster."
+        msg: "{{installer_dir}} exists! Remove before creating a new cluster."
       when: stat_result.stat.exists
 
     - name: Create installation config directory
       file:
-        path: "{{base_dir}}/{{cluster_name}}-install"
+        path: "{{installer_dir}}"
         state: directory
+
+    - name: Create installation config directory
+      file:
+        path: "{{files_dir}}"
+        state: directory
+
 
     - name: Create install-config.yaml
       template:
         src: install-config.yaml.j2
-        dest: "{{base_dir}}/{{cluster_name}}-install-config.yaml"
+        dest: "{{files_dir}}/install-config.yaml"
 
     - name: Create per-cluster webroot
       file:
@@ -42,38 +54,38 @@
         group: apache
       become: true
 
-    - name: Fetch RHCOS Root FS Image
+    - name: Fetch RHCOS ISO
       get_url:
-        url: "{{source_urls['rhcos_image']}}"
-        dest: "/var/www/html/{{cluster_name}}/rhcos-rootfs.img"
-        owner: apache
-        group: apache
-      become: true
+        url: "{{source_urls['rhcos_live_iso']}}"
+        dest: "{{files_dir}}/rhcos-base.iso"
       environment:
         http_proxy: "{{proxy_url|default(omit)}}"
         https_proxy: "{{proxy_url|default(omit)}}"
 
-    - name: Fetch RHCOS Kernel
-      get_url:
-        url: "{{source_urls['rhcos_kernel']}}"
-        dest: "/var/www/html/{{cluster_name}}/rhcos-kernel"
-        owner: apache
-        group: apache
-      become: true
-      environment:
-        http_proxy: "{{proxy_url|default(omit)}}"
-        https_proxy: "{{proxy_url|default(omit)}}"
+    - name: Extract RHCOS ISO (Podman)
+      shell:
+        #!/bin/bash
+        podman run \
+          --security-opt label=disable \
+          --rm \
+          -v {{files_dir}}:/data \
+          -w /data {{coreos_installer_image}} \
+          iso extract minimal-iso \
+          --output-rootfs rhcos-rootfs.img \
+          rhcos-base.iso \
+          rhcos-minimal.iso
 
-    - name: Fetch RHCOS Ramdisk
-      get_url:
-        url: "{{source_urls['rhcos_initrd']}}"
-        dest: "/var/www/html/{{cluster_name}}/rhcos.initrd"
+
+        chmod 666 {{files_dir}}/rhcos-minimal.iso
+      become: true
+
+    - name: Copy RHCOS Root FS
+      copy:
+        src: "{{files_dir}}/rhcos-rootfs.img"
+        dest: /var/www/html/{{cluster_name}}/rhcos-rootfs.img
         owner: apache
         group: apache
       become: true
-      environment:
-        http_proxy: "{{proxy_url|default(omit)}}"
-        https_proxy: "{{proxy_url|default(omit)}}"
 
     - name: Create TLS CA ignition
       include_tasks: "include/tls_ignition_patch.yaml"
@@ -84,29 +96,33 @@
       when: wipe_disks == true
 
     - name: Compile combined ignition
-      include_tasks: "include/create_ignition_initrd.yaml"
+      include_tasks: "include/create_live_ignition.yaml"
       when: additional_ignition_fragments
 
     - name: Copy install-config
       copy:
-        src: "{{base_dir}}/{{cluster_name}}-install-config.yaml"
-        dest: "{{base_dir}}/{{cluster_name}}-install/install-config.yaml"
+        src: "{{files_dir}}/install-config.yaml"
+        dest: "{{installer_dir}}/install-config.yaml"
         remote_src: yes
 
     - name: Create manifests
-      shell: "{{bin_dir}}/openshift-install --dir={{base_dir}}/{{cluster_name}}-install create manifests"
+      shell: "{{bin_dir}}/openshift-install --dir={{installer_dir}} create manifests"
 
     - name: Create custom Network Operator config
       template:
         src: cluster-network-operator-config.yaml.j2
-        dest: "{{base_dir}}/{{cluster_name}}-install/manifests/cluster-network-03-config.yml"
+        dest: "{{installer_dir}}/manifests/cluster-network-03-config.yml"
       when: customize_network_operator_config
 
+    - name: Configure disk encryption
+      include_tasks: "include/enable_disk_encryption.yaml"
+      when: encrypt_master_disks or encrypt_worker_disks
+
     - name: Set masters to unschedulable
-      shell: "sed -i s/true/false/ {{base_dir}}/{{cluster_name}}-install/manifests/cluster-scheduler-02-config.yml"
+      shell: "sed -i s/true/false/ {{installer_dir}}/manifests/cluster-scheduler-02-config.yml"
 
     - name: Create base ignition configs
-      shell: "{{bin_dir}}/openshift-install --dir={{base_dir}}/{{cluster_name}}-install create ignition-configs"
+      shell: "{{bin_dir}}/openshift-install --dir={{installer_dir}} create ignition-configs"
 
 - hosts: openshift_nodes
   gather_facts: false
@@ -115,18 +131,18 @@
       include_tasks: "include/gather_{{pm_type}}_facts.yaml"
       when: provision == true
 
-    - name: Build isolinux artifacts
-      include_tasks: include/isolinux_build_iso.yaml
+    - name: Build ISOs
+      include_tasks: include/coreos_build_iso.yaml
       when: provision == true
 
 - hosts: utility
   gather_facts: true
   tasks:
     - name: Copy ignition files
-      shell: "cp {{base_dir}}/{{cluster_name}}-install/*.ign /var/www/html/{{cluster_name}} && chown apache:apache /var/www/html/{{cluster_name}}/*.ign"
+      shell: "cp {{installer_dir}}/*.ign /var/www/html/{{cluster_name}} && chown apache:apache /var/www/html/{{cluster_name}}/*.ign"
       become: true
 
-    - name: Upload isolinux-based ISOs
+    - name: Upload ISOs
       copy:
         src: "{{iso_tmp_dir}}/ocp-iso-build/isos"
         dest: /var/www/html/{{cluster_name}}/boot-isos
@@ -145,7 +161,7 @@
   gather_facts: true
   tasks:
     - name: Wait for bootstrap
-      shell: "{{bin_dir}}/openshift-install --dir={{base_dir}}/{{cluster_name}}-install wait-for bootstrap-complete"
+      shell: "{{bin_dir}}/openshift-install --dir={{installer_dir}} wait-for bootstrap-complete"
       register: result
       until: result.rc == 0
       retries: 3
