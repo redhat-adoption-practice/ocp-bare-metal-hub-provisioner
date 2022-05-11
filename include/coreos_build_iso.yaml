@@ -25,6 +25,7 @@
   stat:
     path: "{{files_dir}}/combined-ignition.ign"
   register: live_ignition_file
+  delegate_to: localhost
 
 - name: Build customized ISO (4.10+)
   shell: |
