@@ -21,7 +21,7 @@
       - "--dest-ignition /install/{{role}}.ign"
     coreos_kernel_args: "{{ lookup('template', 'kargs.j2').split() }}"
 
-- name: Build customized ISO
+- name: Build customized ISO (4.10+)
   shell: |
     #!/bin/bash
     podman run \
@@ -34,6 +34,9 @@
       {{coreos_installer_image}} \
       iso customize -f /iso/{{inventory_hostname}}.iso \
       {{ coreos_installer_args|join(' ')|default(omit) }} \
+      {% if additional_ignition_fragments %}
+      --live-ignition /data/combined-ignition.ign \
+      {% endif %}
       --live-karg-append coreos.live.rootfs_url={{utility_http_scheme}}://{{utility_host}}:{{utility_http_port}}/{{cluster_name}}/rhcos-rootfs.img \
       --live-karg-append {{ coreos_kernel_args|join(' --live-karg-append ') }} \
       {% if enable_kargs_in_dest %}
@@ -42,3 +45,44 @@
 
   become: true
   delegate_to: localhost
+  when: source_urls.rhcos_image is not defined
+
+- name: Embed kernel args (pre-4.10)
+  shell: |
+    #!/bin/bash
+    podman run \
+      --security-opt label=disable \
+      --rm \
+      -v {{files_dir}}:/data \
+      -v {{installer_dir}}:/install \
+      -v {{iso_tmp_dir}}/ocp-iso-build/isos:/iso \
+      -w /iso \
+      {{coreos_installer_image}} \
+      iso kargs modify /iso/{{inventory_hostname}}.iso \
+      -a coreos.inst=yes \
+      -a coreos.inst.install_dev={{deploy_disk}} \
+      -a coreos.inst.ignition_url={{utility_http_scheme}}://{{utility_host}}:{{utility_http_port}}/{{cluster_name}}/{{role}}.ign \
+      -a {{ coreos_kernel_args|join(' -a ') }} 
+
+  become: true
+  delegate_to: localhost
+  when: source_urls.rhcos_image is defined
+
+- name: Embed live ignition (pre-4.10)
+  shell: |
+    #!/bin/bash
+    podman run \
+      --security-opt label=disable \
+      --rm \
+      -v {{files_dir}}:/data \
+      -v {{installer_dir}}:/install \
+      -v {{iso_tmp_dir}}/ocp-iso-build/isos:/iso \
+      -w /iso \
+      {{coreos_installer_image}} \
+      iso ignition embed /iso/{{inventory_hostname}}.iso \
+      -f \
+      -i /data/combined-ignition.ign 
+
+  become: true
+  delegate_to: localhost
+  when: source_urls.rhcos_image is defined and additional_ignition_fragments != []

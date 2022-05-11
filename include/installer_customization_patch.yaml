@@ -1,0 +1,12 @@
+- name: Render FCCT Fragment
+  template:
+    src: installer-customization.bu.j2
+    dest: "{{files_dir}}/installer-customization-fragment.yaml"
+
+- name: Save fragment path
+  set_fact:
+    inst_customize_fragment_path: "{{files_dir}}/installer-customization-fragment.yaml"
+
+- name: Register FCCT Fragment
+  set_fact:
+    additional_ignition_fragments: "{{ additional_ignition_fragments + [inst_customize_fragment_path] }}"
