@@ -53,6 +53,14 @@
         remote_src: yes
         src: "{{base_dir}}/openshift-client-linux.tar.gz"
 
+    - name: Remove tarballs
+      file:
+        path: "{{base_dir}}/{{item}}"
+        state: absent
+      loop:
+        - "openshift-client-linux.tar.gz"
+        - "openshift-install-linux.tar.gz"
+
     - name: Pull coreos-installer image (Docker)
       docker_image:
         source: pull
