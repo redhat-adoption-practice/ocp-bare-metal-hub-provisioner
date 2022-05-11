@@ -62,7 +62,7 @@
         http_proxy: "{{proxy_url|default(omit)}}"
         https_proxy: "{{proxy_url|default(omit)}}"
 
-    - name: Extract RHCOS ISO (Podman)
+    - name: Extract RHCOS ISO if needed(Podman)
       shell:
         #!/bin/bash
         podman run \
@@ -78,6 +78,16 @@
 
         chmod 666 {{files_dir}}/rhcos-minimal.iso
       become: true
+      when: source_urls.rhcos_image is not defined
+
+    - name: Fetch RHCOS Root FS if needed
+      get_url:
+        url: "{{source_urls['rhcos_image']}}"
+        dest: "{{files_dir}}/rhcos-rootfs.img"
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+      when: source_urls.rhcos_image is defined
 
     - name: Copy RHCOS Root FS
       copy:
