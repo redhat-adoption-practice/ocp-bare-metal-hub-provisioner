@@ -89,6 +89,13 @@
         https_proxy: "{{proxy_url|default(omit)}}"
       when: source_urls.rhcos_image is defined
 
+    - name: Symlink rhcos-minimal.iso for pre-4.10
+      file:
+        state: link
+        src: "{{files_dir}}/rhcos-base.iso"
+        path: "{{files_dir}}/rhcos-minimal.iso"
+      when: source_urls.rhcos_image is defined
+
     - name: Copy RHCOS Root FS
       copy:
         src: "{{files_dir}}/rhcos-rootfs.img"
