@@ -145,14 +145,15 @@
   retries: 5
   delay: 5
 
-- name: Set VM to Legacy Boot from ISO
+- name: Set VM to Boot from ISO
   vmware_guest_boot_manager:
     hostname: "{{vcenter_host}}"
     username: "{{vcenter_user}}"
     password: "{{vcenter_password}}"
     validate_certs: "{{vmware_verify_tls|default(false)}}"
     name: "{{short_name|default(inventory_hostname)}}"
-    boot_firmware: bios
+    boot_firmware: "{{ boot_mode|default('efi') }}"
+    secure_boot_enabled: "{{ secure_boot|default(omit) }}"
     boot_order: ["cdrom", "disk", "ethernet"]
   delegate_to: localhost
   register: vmware_task
@@ -178,14 +179,15 @@
   pause:
     seconds: 10
 
-- name: Set VM to Legacy Boot from Disk
+- name: Set VM to Boot from Disk
   vmware_guest_boot_manager:
     hostname: "{{vcenter_host}}"
     username: "{{vcenter_user}}"
     password: "{{vcenter_password}}"
     validate_certs: "{{vmware_verify_tls|default(false)}}"
     name: "{{short_name|default(inventory_hostname)}}"
-    boot_firmware: bios
+    boot_firmware: "{{ boot_mode|default('efi') }}"
+    secure_boot_enabled: "{{ secure_boot|default(omit) }}"
     boot_order: ["disk", "cdrom", "ethernet"]
   delegate_to: localhost
   register: vmware_task

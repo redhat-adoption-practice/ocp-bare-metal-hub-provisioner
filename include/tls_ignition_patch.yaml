@@ -1,11 +1,11 @@
 - name: Render FCCT Fragment
   template:
     src: tls-ca-fcct-fragment.yaml.j2
-    dest: "{{build_dir}}/{{cluster_name}}-tls-ca-fcct-fragment.yaml"
+    dest: "{{files_dir}}/tls-ca-fcct-fragment.yaml"
 
 - name: Save fragment path
   set_fact:
-    tls_fragment_path: "{{build_dir}}/{{cluster_name}}-tls-ca-fcct-fragment.yaml"
+    tls_fragment_path: "{{files_dir}}/tls-ca-fcct-fragment.yaml"
 
 - name: Register FCCT Fragment
   set_fact:

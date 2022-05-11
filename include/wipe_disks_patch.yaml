@@ -1,11 +1,11 @@
 - name: Render FCCT Fragment
   template:
     src: wipe-disks-fcct-fragment.yaml.j2
-    dest: "{{build_dir}}/{{cluster_name}}-wipe-disks-fcct-fragment.yaml"
+    dest: "{{files_dir}}/wipe-disks-fcct-fragment.yaml"
 
 - name: Save fragment path
   set_fact:
-    wipe_disks_fragment_path: "{{build_dir}}/{{cluster_name}}-wipe-disks-fcct-fragment.yaml"
+    wipe_disks_fragment_path: "{{files_dir}}/wipe-disks-fcct-fragment.yaml"
 
 - name: Register FCCT Fragment
   set_fact:

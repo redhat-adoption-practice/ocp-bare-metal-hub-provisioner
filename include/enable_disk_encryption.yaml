@@ -1,0 +1,23 @@
+- name: Render Butane Fragment (Worker)
+  template:
+    src: worker-encryption.yaml.j2
+    dest: "{{files_dir}}/worker-encryption.bu"
+  when: encrypt_worker_disks
+
+- name: Render Butane Fragment (Master)
+  template:
+    src: master-encryption.yaml.j2
+    dest: "{{files_dir}}/master-encryption.bu"
+  when: encrypt_master_disks
+
+- name: Generate Encryption Ignition (Worker)
+  shell: |
+    #!/bin/bash
+    podman run -i --rm {{fcct_image}} --pretty --strict < {{files_dir}}/worker-encryption.bu > {{installer_dir}}/openshift/99-worker-encryption.yaml
+  when: encrypt_worker_disks
+
+- name: Generate Encryption Ignition (Master)
+  shell: |
+    #!/bin/bash
+    podman run -i --rm {{fcct_image}} --pretty --strict < {{files_dir}}/master-encryption.bu > {{installer_dir}}/openshift/99-master-encryption.yaml
+  when: encrypt_master_disks

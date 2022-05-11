@@ -1,0 +1,44 @@
+- name: Make build root directories
+  file:
+    dest: "{{item}}"
+    state: directory
+  delegate_to: localhost
+  with_items:
+    - "{{iso_tmp_dir}}"
+    - "{{iso_tmp_dir}}/ocp-iso-build"
+    - "{{iso_tmp_dir}}/ocp-iso-build/isos"
+
+- name: Copy minimal ISO for host
+  copy:
+    src: "{{files_dir}}/rhcos-minimal.iso"
+    dest: "{{iso_tmp_dir}}/ocp-iso-build/isos/{{inventory_hostname}}.iso"
+  delegate_to: localhost
+
+- name: Initialize coreos-installer variables
+  set_fact:
+    coreos_installer_args:
+      - "--dest-device /dev/{{deploy_disk}}"
+      - "--dest-ignition /install/{{role}}.ign"
+    coreos_kernel_args: "{{ lookup('template', 'kargs.j2').split() }}"
+
+- name: Build customized ISO
+  shell: |
+    #!/bin/bash
+    podman run \
+      --security-opt label=disable \
+      --rm \
+      -v {{files_dir}}:/data \
+      -v {{installer_dir}}:/install \
+      -v {{iso_tmp_dir}}/ocp-iso-build/isos:/iso \
+      -w /iso \
+      {{coreos_installer_image}} \
+      iso customize -f /iso/{{inventory_hostname}}.iso \
+      {{ coreos_installer_args|join(' ')|default(omit) }} \
+      --live-karg-append coreos.live.rootfs_url={{utility_http_scheme}}://{{utility_host}}:{{utility_http_port}}/{{cluster_name}}/rhcos-rootfs.img \
+      --live-karg-append {{ coreos_kernel_args|join(' --live-karg-append ') }} \
+      {% if enable_kargs_in_dest %}
+      --dest-karg-append {{ coreos_kernel_args|join(' --dest-karg-append ') }}
+      {% endif %}
+
+  become: true
+  delegate_to: localhost
