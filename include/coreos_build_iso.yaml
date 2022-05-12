@@ -65,8 +65,9 @@
       -w /iso \
       {{coreos_installer_image}} \
       iso kargs modify /iso/{{inventory_hostname}}.iso \
-      -a coreos.inst=yes \
+      {% if not live_ignition_file.stat.exists and not enable_kargs_in_dest %}
       -a coreos.inst.install_dev={{deploy_disk}} \
+      {% endif %}
       -a coreos.inst.ignition_url={{utility_http_scheme}}://{{utility_host}}:{{utility_http_port}}/{{cluster_name}}/{{role}}.ign \
       -a {{ coreos_kernel_args|join(' -a ') }} 
 

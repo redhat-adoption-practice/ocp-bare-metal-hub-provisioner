@@ -76,7 +76,7 @@ tang_persist_net:
           }
           
           # Get install device
-          device="$(karg coreos.inst.install_dev)"
+          device="/dev/{{deploy_disk}}"
           if [ -z "${device}" ]; then
               echo "No install device specified."
               exit 1
