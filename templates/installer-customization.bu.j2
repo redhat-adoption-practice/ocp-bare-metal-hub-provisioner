@@ -1,9 +1,32 @@
 # This fragment replaces the coreos-installer-service script with one patched # to persist network kernel args beyond the first boot for NBDE.
 tang_persist_net:
+  systemd_units:
+    - name: customized-installer.service
+      enabled: true
+      contents: |
+        [Unit]
+        Description=CoreOS Installer
+        Requires=coreos-installer-pre.target
+        After=coreos-installer-pre.target
+        After=network-online.target
+        Wants=network-online.target
+        OnFailure=emergency.target
+        OnFailureJobMode=replace-irreversibly
+        
+        [Service]
+        Type=oneshot
+        ExecStart=/usr/local/bin/coreos-installer-service
+        ExecStart=/usr/bin/systemctl --no-block reboot
+        StandardOutput=kmsg+console
+        StandardError=kmsg+console
+
+        [Install]
+        RequiredBy=default.target
+
+
   files:
-    - path: /usr/libexec/coreos-installer-service
+    - path: /usr/local/bin/coreos-installer-service
       mode: 0755
-      overwrite: true
       contents:
         inline: |
           #!/bin/bash
