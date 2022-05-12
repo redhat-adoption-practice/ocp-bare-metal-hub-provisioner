@@ -13,12 +13,10 @@
   set_fact:
     serial: "{{vm_info.instance.hw_product_uuid|vmware_serial}}"
 
-- name: Save target datastore (Converged Datastore)
+- name: Save VM datastore
   set_fact:
     converged_target_datastore: "{{vm_info.instance.hw_files[0]|vmware_datastore}}"
-  when: vmware_iso_storage == 'converged_datastore'
 
-- name: Save target datastore folder (Converged Datastore)
+- name: Save VM datastore folder
   set_fact:
     converged_target_folder: "{{vm_info.instance.hw_files[0]|vmware_folder_path}}"
-  when: vmware_iso_storage == 'converged_datastore'

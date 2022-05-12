@@ -123,9 +123,22 @@
   retries: 5
   delay: 5
 
-- name: Wait 10 seconds for ISO upload to settle
-  pause:
-    seconds: 10
+- name: Clear VM EFI NVRAM
+  vsphere_file:
+    hostname: "{{vcenter_host}}"
+    username: "{{vcenter_user}}"
+    password: "{{vcenter_password}}"
+    validate_certs: "{{vmware_verify_tls|default(false)}}"
+    datacenter: "{{vmware_datacenter}}"
+    datastore: "{{converged_target_datastore}}"
+    path: "{{converged_target_folder}}/{{short_name|default(inventory_hostname)}}.nvram"
+    state: absent
+  when: vmware_wipe_nvram == true
+  delegate_to: localhost
+  register: vmware_task
+  until: vmware_task is not failed
+  retries: 5
+  delay: 5
 
 - name: Configure VMs to use ISO (Converged Datastore)
   vmware_guest:
