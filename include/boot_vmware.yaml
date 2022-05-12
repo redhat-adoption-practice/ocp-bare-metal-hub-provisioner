@@ -123,6 +123,10 @@
   retries: 5
   delay: 5
 
+- name: Wait 10 seconds for ISO upload to settle
+  pause:
+    seconds: 10
+
 - name: Configure VMs to use ISO (Converged Datastore)
   vmware_guest:
     hostname: "{{vcenter_host}}"

@@ -129,9 +129,6 @@ tang_persist_net:
               args+=("--insecure")
           fi
           
-          # Always retry HTTP requests; we've got nothing to lose since we fail anyway.
-          args+=("--fetch-retries" "infinite")
-          
           # Ensure device nodes have been created
           udevadm settle
           
