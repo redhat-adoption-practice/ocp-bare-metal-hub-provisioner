@@ -15,7 +15,7 @@ tang_persist_net:
         
         [Service]
         Type=oneshot
-        ExecStart=/usr/local/bin/coreos-installer-service
+        ExecStart=/usr/local/bin/customized-installer-service
         ExecStart=/usr/bin/systemctl --no-block reboot
         StandardOutput=kmsg+console
         StandardError=kmsg+console
@@ -25,7 +25,7 @@ tang_persist_net:
 
 
   files:
-    - path: /usr/local/bin/coreos-installer-service
+    - path: /usr/local/bin/customized-installer-service
       mode: 0755
       contents:
         inline: |
