@@ -20,12 +20,10 @@ wipe_disks:
       contents: |
         [Unit]
         Description=Run before install
-        After=coreos-installer-pre.target
-        Before=coreos-installer.service
     
         [Service]
         Type=oneshot
         ExecStart=/usr/local/bin/wipe-disks.sh
     
         [Install]
-        RequiredBy=coreos-installer.service
+        RequiredBy=coreos-installer-pre.target

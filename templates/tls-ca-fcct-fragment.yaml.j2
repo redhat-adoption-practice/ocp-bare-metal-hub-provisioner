@@ -14,12 +14,10 @@ tls:
       contents: |
         [Unit]
         Description=Run before install
-        After=coreos-installer-pre.target
-        Before=coreos-installer.service
     
         [Service]
         Type=oneshot
         ExecStart=/usr/bin/update-ca-trust
     
         [Install]
-        RequiredBy=coreos-installer.service
+        RequiredBy=coreos-installer-pre.target
