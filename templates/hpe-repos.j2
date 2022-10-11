@@ -1,0 +1,24 @@
+[hpe-sdr-gen10]
+name=hpe-sdr-gen10
+baseurl={{ hpe_repos.sdr }}
+gpgcheck=0
+enabled=1
+
+[hpe-sum]
+name=hpe-sum
+baseurl={{ hpe_repos.sum }}
+gpgcheck=0
+enabled=1
+
+[hpe-ilorest]
+name=hpe-ilorest
+baseurl={{ hpe_repos.ilorest }}
+gpgcheck=0
+enabled=1
+
+[deps]
+name=hpe-deps
+baseurl={{ hpe_repos.deps }}
+gpgcheck=0
+enabled=1
+sslverify=0

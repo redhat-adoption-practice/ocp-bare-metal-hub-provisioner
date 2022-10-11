@@ -1,0 +1,3 @@
+- name: Install HPE Tools
+  include_tasks: hpe_tools_install.yaml
+  when: hpe_tools_enabled == true

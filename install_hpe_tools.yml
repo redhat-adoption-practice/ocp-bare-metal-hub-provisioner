@@ -1,0 +1,8 @@
+---
+- hosts: all
+  gather_facts: true
+  become: true
+  tasks:
+  - name: Install HPE Tools
+    include_tasks: include/hpe_tools_install.yaml
+    when: pm_type == "ilo"
