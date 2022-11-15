@@ -7,7 +7,7 @@
         additional_ignition_fragments: []
 
     - name: Create TLS CA initrd
-      include_tasks: "include/tls_initrd_patch.yaml"
+      include_tasks: "include/tls_ignition_patch.yaml"
       when: tls_additional_cas
 
     - name: Create disk wiping initrd

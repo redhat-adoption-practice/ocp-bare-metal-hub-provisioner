@@ -1,0 +1,17 @@
+[hpe-spp-gen10]
+name=hpe-spp-gen10
+baseurl={{ hpe_repos.spp }}
+gpgcheck=0
+enabled=1
+
+[hpe-ilorest]
+name=hpe-ilorest
+baseurl={{ hpe_repos.ilorest }}
+gpgcheck=0
+enabled=1
+
+[deps]
+name=hpe-rhel-deps
+baseurl={{ hpe_repos.deps }}
+gpgcheck=0
+enabled=1
