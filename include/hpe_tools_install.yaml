@@ -2,16 +2,29 @@
   wait_for_connection:
     delay: 120
     timeout: 600
+  when: hpe_tools_delay is not defined or hpe_tools_delay == true
 
-- name: Wait five minutes to ensure rpm-ostree is ready
+- name: Wait ten minutes for first-boot RHCOS upgrade
   wait_for:
-    timeout: 300
+    timeout: 600
+  when: hpe_tools_delay is not defined or hpe_tools_delay == true
+  delegate_to: localhost
+
+- name: Wait for RHCOS to come up
+  wait_for_connection:
+    delay: 120
+    timeout: 600
+  when: hpe_tools_delay is not defined or hpe_tools_delay == true
 
 - name: Deploy HPE Tools Repo Config
   become: true
   template:
     src: hpe-repos.j2
     dest: /etc/yum.repos.d/hpe.repo
+
+- name: Clear rpm-ostree repo metadata
+  become: true
+  shell: "rpm-ostree cleanup -m"
 
 - name: Install packages via rpm-ostree
   become: true
@@ -21,3 +34,11 @@
   reboot:
     reboot_timeout: 1200
   become: true
+
+- name: Enable services
+  become: true
+  systemd:
+    enabled: true
+    state: started
+    name: "{{item}}"
+  loop: "{{hpe_tools_services|default([])}}"

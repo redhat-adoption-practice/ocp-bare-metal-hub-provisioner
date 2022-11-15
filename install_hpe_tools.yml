@@ -2,7 +2,9 @@
 - hosts: all
   gather_facts: true
   become: true
+  vars:
+    hpe_tools_delay: false
   tasks:
   - name: Install HPE Tools
     include_tasks: include/hpe_tools_install.yaml
-    when: pm_type == "ilo"
+    when: pm_type is defined and pm_type == "ilo"

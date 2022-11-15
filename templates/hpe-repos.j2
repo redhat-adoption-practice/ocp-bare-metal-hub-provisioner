@@ -1,12 +1,6 @@
-[hpe-sdr-gen10]
-name=hpe-sdr-gen10
-baseurl={{ hpe_repos.sdr }}
-gpgcheck=0
-enabled=1
-
-[hpe-sum]
-name=hpe-sum
-baseurl={{ hpe_repos.sum }}
+[hpe-spp-gen10]
+name=hpe-spp-gen10
+baseurl={{ hpe_repos.spp }}
 gpgcheck=0
 enabled=1
 
@@ -17,8 +11,7 @@ gpgcheck=0
 enabled=1
 
 [deps]
-name=hpe-deps
+name=hpe-rhel-deps
 baseurl={{ hpe_repos.deps }}
 gpgcheck=0
 enabled=1
-sslverify=0
