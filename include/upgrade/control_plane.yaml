@@ -1,0 +1,28 @@
+- name: fail if upgrade is blocked
+
+- name: set all machine config pools to paused
+
+- name: ensure control plane config pools are unpaused
+
+- name: run pre-upgrade hook
+  include_tasks: "hooks/pre_cluster_upgrade.yaml"
+
+- name: create silence for cluster alarms
+
+- name: set target version (normal)
+  when: target_version_type == "channel"
+
+- name: set target version (force)
+  when: target_version_type == "channel"
+
+- name: set target release image (normal)
+  when: target_version_type == "image"
+
+- name: set target release image (force)
+  when: target_version_type == "image"
+
+- name: wait for cluster version rollout
+
+- name: run post-upgrade hook
+  include_tasks: "hooks/post_cluster_upgrade.yaml"
+

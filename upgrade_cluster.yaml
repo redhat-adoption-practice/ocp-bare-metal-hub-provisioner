@@ -1,0 +1,24 @@
+---
+- name: Cluster upgrade preflight
+  hosts: utility
+  gather_facts: true
+  any_errors_fatal: true
+  vars:
+    target_node_groups: []
+  tasks:
+    - name: include cluster preflight tasks
+      include_tasks: "include/upgrade/cluster_preflight.yaml"
+
+- name: Node upgrade preflight
+  hosts: openshift_nodes
+  gather_facts: false
+  any_errors_fatal: true
+  vars:
+    target_node_groups: []
+  tasks:
+    - name: Gather node information
+      include_tasks: "include/gather_{{pm_type}}_facts.yaml"
+      when: node_group in target_node_groups
+
+    - name: include node preflight tasks
+      include_tasks: "include/upgrade/node_preflight.yaml"

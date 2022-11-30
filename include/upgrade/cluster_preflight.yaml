@@ -1,0 +1,20 @@
+# Cluster level validations prior to upgrade
+# Will set control_plane_upgrade_required to true or false
+
+- name: fail if target version is not set
+
+- name: get current control plane version
+
+- name: warn if target version is a release image
+
+- name: verify that target version is available
+
+- name: set control_plane_upgrade_required for version match
+  set_fact:
+    control_plane_upgrade_required: false
+  when: target_version == current_cluster_version
+
+- name: set control_plane_upgrade_required for version mismatch
+  set_fact:
+    control_plane_upgrade_required: true
+  when: target_version != current_cluster_version

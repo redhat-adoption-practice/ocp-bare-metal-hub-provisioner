@@ -1,0 +1,5 @@
+- name: ensure node is uncordoned
+
+- name: run post-node-up hook
+  include_tasks: "hooks/post_node_up.yaml"
+

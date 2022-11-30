@@ -1,0 +1,3 @@
+- name: wait for OS to be online
+
+- name: wait for k8s node to be ready

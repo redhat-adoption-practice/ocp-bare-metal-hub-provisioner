@@ -1,0 +1,12 @@
+- name: run pre-node-down hook
+  include_tasks: "hooks/pre_node_down.yaml"
+  when: node_group in target_node_groups
+
+- name: cordon node
+  when: node_group in target_node_groups
+
+- name: drain node
+  when: node_group in target_node_groups
+
+- name: execute firmware upgrade if needed
+  when: node_group in target_node_groups

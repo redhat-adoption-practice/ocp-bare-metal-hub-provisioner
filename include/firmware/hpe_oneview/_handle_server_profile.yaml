@@ -1,0 +1,5 @@
+- name: trigger server profile remediation
+
+- name: get task reference
+
+- name: wait for task completion

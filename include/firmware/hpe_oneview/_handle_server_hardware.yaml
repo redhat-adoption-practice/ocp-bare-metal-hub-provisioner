@@ -1,0 +1,5 @@
+- name: patch server hardware object in oneview
+
+- name: get task reference
+
+- name: wait for task completion

@@ -1,0 +1,7 @@
+- name: wait for nodes to become ready after firmware upgrade
+
+- name: unpause worker group machine config pool
+
+- name: wait for machine config pool to roll out
+
+- name: repause worker group machine config pool

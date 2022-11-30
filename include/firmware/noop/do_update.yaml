@@ -1,0 +1,8 @@
+# do_update should preform the actions necessary to update firmware. 
+# It will only be run if firmware_update_required is true.
+# 
+# At the end of these tasks, the node should be powered on but may
+# still be booting.
+
+- name: noop firmware reminder
+  msg: "Host {{ ansible_hostname }} uses the noop firmware update method. No action will be taken for do_update"

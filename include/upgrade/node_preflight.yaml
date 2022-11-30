@@ -1,0 +1,5 @@
+- name: verify nodes to upgrade are ready in k8s
+
+- name: verify nodes to upgrade are reaachable
+
+- name: run firmware plugin preflight
