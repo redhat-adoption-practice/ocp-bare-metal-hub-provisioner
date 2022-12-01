@@ -24,7 +24,7 @@
     name: version
   register: cluster_version_obj
 
-- name: ensure cluster version operator is in upgradeable state
+- name: ensure cluster version operator is in available state
   kubernetes.core.k8s_info:
     kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
     validate_certs: false
@@ -33,9 +33,15 @@
     name: version
     wait: true
     wait_condition:
-      type: Upgradeable
+      type: Available
     wait_sleep: 5
     wait_timeout: 60
+
+- name: fail if cluster version operator has non-uprgadeable status
+  ansible.builtin.fail:
+    msg: "Cluster version operator is non-upgradeable"
+  when: item.type == 'Upgradeable' and item.status == 'False'
+  loop: '{{ cluster_version_obj.resources.0.status.conditions }}'
 
 - name: warn if target version is a release image
   ansible.builtin.debug:
@@ -65,12 +71,12 @@
 - name: set control_plane_upgrade_required for version match
   set_fact:
     control_plane_upgrade_required: false
-  when: target_version == current_cluster_version
+  when: target_version == current_cluster_version or current_cluster_version in target_version
 
 - name: set control_plane_upgrade_required for version mismatch
   set_fact:
     control_plane_upgrade_required: true
-  when: target_version != current_cluster_version
+  when: target_version != current_cluster_version and current_cluster_version not in target_version
 
 - name: get available versions from clusterversion object
   set_fact:
