@@ -1,5 +1,7 @@
 - name: trigger server profile remediation
-
-- name: get task reference
-
-- name: wait for task completion
+  hpe.oneview.oneview_server_profile:
+    config: "{{ files_dir }}/oneview-config-{{ inventory_hostname }}.json"
+    sessionID: "{{ session }}"
+    state: compliant
+    data:
+      name: "{{ server_profiles.0.name }}"

@@ -1,5 +1,9 @@
-- name: patch server hardware object in oneview
-
-- name: get task reference
-
-- name: wait for task completion
+# curl 'https://xna-oneview.lab.signal9.gg/rest/server-hardware/304B3951-4134-4D32-3239-313530354E5A/firmware/settings' -X PATCH -H 'Content-Type: application/json' -H 'auth: TOKEN' -H 'X-API-Version: 4400' --data-raw '[{"op":"replace","path":"","value":{"baselineUri":"/rest/firmware-drivers/P35938_001_spp-2021_05_0-SPP2021050_2021_0504_129","forceApplyFirmware":false,"firmwareInstallType":"FirmwareOnlyOfflineMode","installationPolicy":"NotEqualToBaseline"}}]'
+#- name: patch server hardware object in oneview
+#  hpe.oneview.oneview_server_hardware:
+#    config: "{{ files_dir }}/oneview-config-{{ inventory_hostname }}.json"
+#    sessionID: "{{ session }}"
+#    state: present
+#    data:
+#      name: "{{ server_hardwares.name }}"
+#
