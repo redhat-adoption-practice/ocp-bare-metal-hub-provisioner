@@ -1,28 +1,92 @@
-- name: fail if upgrade is blocked
+- name: get all machine config pools
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    api_version: machineconfiguration.openshift.io/v1
+    kind: MachineConfigPool
+  register: mcp_list
 
-- name: set all machine config pools to paused
+- name: pause all machine config pools
+  kubernetes.core.k8s:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    definition:
+      apiVersion: machineconfiguration.openshift.io/v1
+      kind: MachineConfigPool
+      metadata:
+        name: "{{ item.metadata.name }}"
+      spec:
+        paused: true
+  loop: "{{ mcp_list.resources }}"
+
 
 - name: ensure control plane config pools are unpaused
+  kubernetes.core.k8s:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    definition:
+      apiVersion: machineconfiguration.openshift.io/v1
+      kind: MachineConfigPool
+      metadata:
+        name: "{{ item.metadata.name }}"
+      spec:
+        paused: false
+  loop: "{{ control_plane_mcp_list }}"
 
 - name: run pre-upgrade hook
-  include_tasks: "hooks/pre_cluster_upgrade.yaml"
+  ansible.builtin.include_tasks: "hooks/pre_cluster_upgrade.yaml"
 
-- name: create silence for cluster alarms
+#- name: create silence for cluster alarms
 
-- name: set target version (normal)
+- name: set target version
+  ansible.builtin.shell:
+    cmd: "{{ bin_dir }}/oc adm upgrade --kubeconfig={{ installer_dir }}/auth/kubeconfig --to={{ target_version }} {{ ocp_upgrade_flags|default("") }}" 
   when: target_version_type == "channel"
 
-- name: set target version (force)
-  when: target_version_type == "channel"
-
-- name: set target release image (normal)
+- name: set target release imagea
+  ansible.builtin.shell:
+    cmd: "{{ bin_dir }}/oc adm upgrade --kubeconfig={{ installer_dir }}/auth/kubeconfig --to-image={{ target_version }} {{ ocp_upgrade_flags|default("") }}" 
   when: target_version_type == "image"
 
-- name: set target release image (force)
-  when: target_version_type == "image"
+- name: wait one minute for cluster version operator to begin rollout
+  ansible.builtin.pause:
+    minutes: 1
 
-- name: wait for cluster version rollout
+- name: wait for cluster version available
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    validate_certs: false
+    api_version: config.openshift.io/v1
+    kind: ClusterVersion
+    name: version
+    wait: true
+    wait_condition:
+      type: "Available"
+    wait_sleep: 60
+    wait_delay: 7200
+
+- name: wait for cluster version not progressing
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    validate_certs: false
+    api_version: config.openshift.io/v1
+    kind: ClusterVersion
+    name: version
+    wait: true
+    wait_condition:
+      type: "Progressing"
+      status: "False"
+    wait_sleep: 10
+    wait_delay: 1200
+
+- name: wait for all control plane machine config pools to update
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    api_version: machineconfiguration.openshift.io/v1
+    kind: MachineConfigPool
+    name: "{{ item }}"
+    wait: true
+    wait_condition:
+      type: Updated
+    wait_sleep: 30
+    wait_delay: 1200
 
 - name: run post-upgrade hook
-  include_tasks: "hooks/post_cluster_upgrade.yaml"
-
+  ansible.builtin.include_tasks: "hooks/post_cluster_upgrade.yaml"

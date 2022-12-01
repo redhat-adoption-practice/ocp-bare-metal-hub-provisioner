@@ -7,7 +7,7 @@
     target_node_groups: []
   tasks:
     - name: include cluster preflight tasks
-      include_tasks: "include/upgrade/cluster_preflight.yaml"
+      ansible.builtin.include_tasks: "include/upgrade/cluster_preflight.yaml"
 
 - name: Node upgrade preflight
   hosts: openshift_nodes
@@ -17,8 +17,168 @@
     target_node_groups: []
   tasks:
     - name: Gather node information
-      include_tasks: "include/gather_{{pm_type}}_facts.yaml"
-      when: node_group in target_node_groups
+      ansible.builtin.include_tasks: "include/gather_{{pm_type}}_facts.yaml"
+      when: node_group is defined and node_group in target_node_groups
 
     - name: include node preflight tasks
-      include_tasks: "include/upgrade/node_preflight.yaml"
+      ansible.builtin.include_tasks: "include/upgrade/node_preflight.yaml"
+      when: node_group is defined and node_group in target_node_groups
+
+- name: Control plane upgrade
+  hosts: utility
+  gather_facts: false
+  vars:
+    target_node_groups: []
+  tasks:
+    - name: include control plane upgrade tasks
+      ansible.builtin.include_tasks: "include/upgrade/control_plane.yaml"
+      when: control_plane_upgrade_required == true
+
+- name: Node group 1 firmware upgrade
+  hosts: openshift_nodes
+  serial: 32
+  gather_facts: false
+  vars:
+    active_node_group: 1
+    target_node_groups: []
+  tasks:
+    - name: include node upgrade tasks for node group
+      include_tasks: "include/upgrade/upgrade_worker_node.yaml"
+      when: node_group is defined and node_group in target_node_groups and node_group == active_node_group and firmware_update_required == true
+
+- name: Node group 1 OCP upgrade
+  hosts: utility
+  gather_facts: false
+  vars:
+    active_node_group: 1
+    target_node_groups: []
+  tasks:
+    - name: include machine pool upgrade tasks
+      ansible.builtin.include_tasks: "include/upgrade/upgrade_worker_group.yaml"
+      when: active_node_group in target_node_groups and control_plane_upgrade_required == true
+
+- name: Node group 1 upgrade cleanup
+  hosts: openshift_nodes
+  serial: 32
+  gather_facts: false
+  vars:
+    active_node_group: 1
+    target_node_groups: []
+  tasks:
+    - name: include node cleanup tasks for node group
+      include_tasks: "include/upgrade/node_cleanup.yaml"
+      when: node_group is defined and node_group in target_node_groups and node_group == active_node_group 
+
+- name: Node group 2 firmware upgrade
+  hosts: openshift_nodes
+  serial: 32
+  gather_facts: false
+  vars:
+    active_node_group: 2
+    target_node_groups: []
+  tasks:
+    - name: include node upgrade tasks for node group
+      include_tasks: "include/upgrade/upgrade_worker_node.yaml"
+      when: node_group is defined and node_group in target_node_groups and node_group == active_node_group and firmware_update_required == true
+
+- name: Node group 2 OCP upgrade
+  hosts: utility
+  gather_facts: false
+  vars:
+    active_node_group: 2
+    target_node_groups: []
+  tasks:
+    - name: include machine pool upgrade tasks
+      ansible.builtin.include_tasks: "include/upgrade/upgrade_worker_group.yaml"
+      when: active_node_group in target_node_groups and control_plane_upgrade_required == true
+
+- name: Node group 2 upgrade cleanup
+  hosts: openshift_nodes
+  serial: 32
+  gather_facts: false
+  vars:
+    active_node_group: 2
+    target_node_groups: []
+  tasks:
+    - name: include node cleanup tasks for node group
+      include_tasks: "include/upgrade/node_cleanup.yaml"
+      when: node_group is defined and node_group in target_node_groups and node_group == active_node_group
+
+- name: Node group 3 firmware upgrade
+  hosts: openshift_nodes
+  serial: 32
+  gather_facts: false
+  vars:
+    active_node_group: 3
+    target_node_groups: []
+  tasks:
+    - name: include node upgrade tasks for node group
+      include_tasks: "include/upgrade/upgrade_worker_node.yaml"
+      when: node_group is defined and node_group in target_node_groups and node_group == active_node_group and firmware_update_required == true
+
+- name: Node group 3 OCP upgrade
+  hosts: utility
+  gather_facts: false
+  vars:
+    active_node_group: 3
+    target_node_groups: []
+  tasks:
+    - name: include machine pool upgrade tasks
+      ansible.builtin.include_tasks: "include/upgrade/upgrade_worker_group.yaml"
+      when: active_node_group in target_node_groups and control_plane_upgrade_required == true
+
+- name: Node group 3 upgrade cleanup
+  hosts: openshift_nodes
+  serial: 32
+  gather_facts: false
+  vars:
+    active_node_group: 3
+    target_node_groups: []
+  tasks:
+    - name: include node cleanup tasks for node group
+      include_tasks: "include/upgrade/node_cleanup.yaml"
+      when: node_group is defined and node_group in target_node_groups and node_group == active_node_group
+
+- name: Node group 4 firmware upgrade
+  hosts: openshift_nodes
+  serial: 32
+  gather_facts: false
+  vars:
+    active_node_group: 4
+    target_node_groups: []
+  tasks:
+    - name: include node upgrade tasks for node group
+      include_tasks: "include/upgrade/upgrade_worker_node.yaml"
+      when: node_group is defined and node_group in target_node_groups and node_group == active_node_group and firmware_update_required == true
+
+- name: Node group 4 OCP upgrade
+  hosts: utility
+  gather_facts: false
+  vars:
+    active_node_group: 4
+    target_node_groups: []
+  tasks:
+    - name: include machine pool upgrade tasks
+      ansible.builtin.include_tasks: "include/upgrade/upgrade_worker_group.yaml"
+      when: active_node_group in target_node_groups and control_plane_upgrade_required == true
+
+- name: Node group 4 upgrade cleanup
+  hosts: openshift_nodes
+  serial: 32
+  gather_facts: false
+  vars:
+    active_node_group: 4
+    target_node_groups: []
+  tasks:
+    - name: include node cleanup tasks for node group
+      include_tasks: "include/upgrade/node_cleanup.yaml"
+      when: node_group is defined and node_group in target_node_groups and node_group == active_node_group
+
+- name: Cluster upgrade cleanup
+  hosts: utility
+  gather_facts: false
+  vars:
+    target_node_groups: []
+  tasks:
+    - name: include cluster cleanup tasks
+      ansible.builtin.include_tasks: "include/upgrade/cluster_cleanup.yaml"
