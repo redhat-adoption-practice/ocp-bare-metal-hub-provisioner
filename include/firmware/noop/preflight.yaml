@@ -2,8 +2,9 @@
 # The firmware_update_required should be set to true or false in this stage
 
 - name: noop firmware reminder
-  msg: "Host {{ ansible_hostname }} uses the noop firmware update method. No action will be taken for updates"
+  debug:
+    msg: "Host {{ inventory_hostname }} uses the noop firmware update method. No action will be taken for updates"
 
 - name: set firmware_update_required for noop
   set_fact:
-    firmware_update_required: false
+    firmware_update_required: true

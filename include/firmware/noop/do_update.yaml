@@ -5,4 +5,9 @@
 # still be booting.
 
 - name: noop firmware reminder
-  msg: "Host {{ ansible_hostname }} uses the noop firmware update method. No action will be taken for do_update"
+  debug:
+    msg: "Host {{ inventory_hostname }} uses the noop firmware update method. No action will be taken for do_update"
+
+- name: pause for debugging
+  ansible.builtin.pause:
+    seconds: 10

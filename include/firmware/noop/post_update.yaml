@@ -3,4 +3,5 @@
 # It will only be run if firmware_update_required is true
 
 - name: noop firmware reminder
-  msg: "Host {{ ansible_hostname }} uses the noop firmware update method. No action will be taken for post_update"
+  debug:
+    msg: "Host {{ inventory_hostname }} uses the noop firmware update method. No action will be taken for post_update"
