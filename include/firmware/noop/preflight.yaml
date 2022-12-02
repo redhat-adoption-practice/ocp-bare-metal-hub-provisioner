@@ -7,4 +7,4 @@
 
 - name: set firmware_update_required for noop
   set_fact:
-    firmware_update_required: true
+    firmware_update_required: false

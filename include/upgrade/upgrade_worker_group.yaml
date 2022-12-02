@@ -19,7 +19,7 @@
     api_version: machineconfiguration.openshift.io/v1
     kind: MachineConfigPool
     name: "node-group-{{ active_node_group }}"
-  wait: true
-  wait_condition:
-    type: Updated
-  wait_timeout: 3600
+    wait: true
+    wait_condition:
+      type: Updated
+    wait_timeout: 3600

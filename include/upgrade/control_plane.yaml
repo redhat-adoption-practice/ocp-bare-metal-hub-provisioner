@@ -88,6 +88,7 @@
       type: Updated
     wait_sleep: 30
     wait_timeout: 1200
+  loop: "{{ control_plane_mcp_list }}"
 
 - name: run post-upgrade hook
   ansible.builtin.include_tasks: "hooks/post_cluster_upgrade.yaml"

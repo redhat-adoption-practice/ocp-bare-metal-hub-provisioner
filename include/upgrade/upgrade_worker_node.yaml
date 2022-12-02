@@ -22,3 +22,7 @@
 - name: execute firmware upgrade if needed
   ansible.builtin.include_tasks: "include/firmware/{{ firmware_update_method }}/do_update.yaml" 
   when: node_group == active_node_group
+
+- name: execute firmware post-update
+  ansible.builtin.include_tasks: "include/firmware/{{ firmware_update_method }}/post_update.yaml" 
+  when: node_group == active_node_group

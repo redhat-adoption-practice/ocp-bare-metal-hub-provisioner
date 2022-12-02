@@ -5,3 +5,4 @@
     state: compliant
     data:
       name: "{{ server_profiles.0.name }}"
+  delegate_to: localhost
