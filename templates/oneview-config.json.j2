@@ -1,0 +1,9 @@
+{
+  "ip": "{{ hpe_oneview_appliance }}",
+  "credentials": {
+    "userName": "{{ hpe_oneview_username }}",
+    "authLoginDomain": "{{ hpe_oneview_login_domain }}",
+    "password": "{{ hpe_oneview_password }}"
+  },
+  "api_version": {{ hpe_oneview_api_version|default(4400) }}
+}

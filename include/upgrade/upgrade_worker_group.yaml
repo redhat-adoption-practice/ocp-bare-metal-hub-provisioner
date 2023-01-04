@@ -1,0 +1,25 @@
+- name: unpause worker group machine config pool
+  kubernetes.core.k8s:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    definition:
+      apiVersion: machineconfiguration.openshift.io/v1
+      kind: MachineConfigPool
+      metadata:
+        name: "node-group-{{ active_node_group }}"
+      spec:
+        paused: false
+
+- name: give MCO one minute to begin updates
+  ansible.builtin.pause:
+    minutes: 1
+
+- name: wait for machine config pool to roll out
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    api_version: machineconfiguration.openshift.io/v1
+    kind: MachineConfigPool
+    name: "node-group-{{ active_node_group }}"
+    wait: true
+    wait_condition:
+      type: Updated
+    wait_timeout: 3600

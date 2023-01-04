@@ -1,0 +1,16 @@
+- name: ensure node is uncordoned
+  kubernetes.core.k8s_drain:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    state: uncordon
+    name: "{{ inventory_hostname }}"
+  delegate_to: localhost
+  register: uncordon_result
+  until: uncordon_result is not failed
+  retries: 5
+  delay: 10
+  when: node_group == active_node_group
+
+- name: run post-node-up hook
+  include_tasks: "hooks/post_node_up.yaml"
+  when: node_group == active_node_group
+

@@ -1,0 +1,29 @@
+- name: wait for OS to be online
+  wait_for_connection:
+    delay: 120
+    timeout: 900
+
+- name: wait for k8s node to be ready
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    validate_certs: false
+    api_version: v1
+    kind: Node
+    name: "{{ inventory_hostname }}"
+    wait: true
+    wait_condition:
+      type: Ready
+    wait_timeout: 600
+  delegate_to: localhost
+
+- name: uncordon node so MCO will update it
+  kubernetes.core.k8s_drain:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    state: uncordon
+    name: "{{ inventory_hostname }}"
+  register: uncordon_result
+  until: uncordon_result is not failed
+  retries: 5
+  delay: 10
+  delegate_to: localhost
+

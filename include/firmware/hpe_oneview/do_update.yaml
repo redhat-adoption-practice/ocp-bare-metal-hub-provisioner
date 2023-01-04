@@ -1,0 +1,34 @@
+# Oneview server hardware task blocks until complete
+- name: power off node for offline updates
+  hpe.oneview.oneview_server_hardware:
+    config: "{{ files_dir }}/oneview-config-{{ inventory_hostname }}.json"
+    sessionID: "{{ session }}"
+    state: power_state_set
+    data:
+        name : "{{ server_hardwares.name }}"
+        powerStateData:
+            powerState: "Off"
+            powerControl: "MomentaryPress"
+  delegate_to: localhost
+  when: hpe_oneview_online_update == false
+
+- name: update firmware via server hardware
+  include_tasks: "include/firmware/hpe_oneview/_handle_server_hardware.yaml"
+  when: hpe_oneview_method == "server_hardware"
+
+- name: ensure server profile is compliant
+  include_tasks: "include/firmware/hpe_oneview/_handle_server_profile.yaml"
+  when: hpe_oneview_method == "server_profile"
+
+- name: power on node after offline updates
+  hpe.oneview.oneview_server_hardware:
+    config: "{{ files_dir }}/oneview-config-{{ inventory_hostname }}.json"
+    sessionID: "{{ session }}"
+    state: power_state_set
+    data:
+        name : "{{ server_hardwares.name }}"
+        powerStateData:
+            powerState: "On"
+  delegate_to: localhost
+  when: hpe_oneview_online_update == false
+

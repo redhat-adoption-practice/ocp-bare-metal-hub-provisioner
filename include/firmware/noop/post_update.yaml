@@ -1,0 +1,7 @@
+# Post-update should handle any cleanup from the firmware update and ensure
+# that the node is booted and healthy.
+# It will only be run if firmware_update_required is true
+
+- name: noop firmware reminder
+  debug:
+    msg: "Host {{ inventory_hostname }} uses the noop firmware update method. No action will be taken for post_update"

@@ -1,0 +1,114 @@
+- name: validate oneview update method
+  ansible.builtin.assert:
+    that: "hpe_oneview_method in ['server_profile', 'server_hardware']"
+- name: ensure oneview config file is present
+  template:
+    src: "oneview-config.json.j2"
+    dest: "{{ files_dir }}/oneview-config-{{ inventory_hostname }}.json"
+  delegate_to: localhost
+
+- name: Get oneview session
+  hpe.oneview.oneview_get_session_id:
+    config: "{{ files_dir }}/oneview-config-{{ inventory_hostname }}.json"
+    name: "ansible upgrade {{inventory_hostname }}"
+  delegate_to: localhost
+  register: hpe_oneview_session
+
+- name: get server hardware facts
+  hpe.oneview.oneview_server_hardware_facts:
+    config: "{{ files_dir }}/oneview-config-{{ inventory_hostname }}.json"
+    uri: "/rest/server-hardware/{{ hpe_product_uuid }}"
+    sessionID: "{{ session }}"
+    options:
+      - firmware
+  delegate_to: localhost
+
+- name: get server profile facts
+  hpe.oneview.oneview_server_profile_facts:
+    config: "{{ files_dir }}/oneview-config-{{ inventory_hostname }}.json"
+    uri: "{{ server_hardwares.serverProfileUri }}"
+    sessionID: "{{ session }}"
+  when: server_hardwares.serverProfileUri
+  delegate_to: localhost
+
+- name: debug oneview facts
+  debug:
+    var: server_hardwares
+  when: debug_oneview_profiles is defined
+
+- name: debug oneview firmware
+  debug:
+    var: server_hardware_firmware
+  when: debug_oneview_profiles is defined
+
+- name: debug oneview profile
+  debug:
+    var: server_profiles
+  when: debug_oneview_profiles is defined
+
+- name: debug oneview profile compliance
+  debug:
+    var: server_profiles
+  when: debug_oneview_profiles is defined
+
+- name: fail if no server profile reference
+  ansible.builtin.fail:
+    msg: "Server {{ inventory_hostname }} is configured for server_profile method but has no profile in OneView"
+  when: hpe_oneview_method == 'server_profile' and not server_hardwares.serverProfileUri
+
+- name: fail if server profile has no template compliance status
+  ansible.builtin.fail:
+    msg: "Server {{ inventory_hostname }} is configured for server_profile method but server profile has improper template compliance status"
+  when: hpe_oneview_method == 'server_profile' and server_profiles.0.templateCompliance not in ['Compliant', 'NonCompliant']
+
+- name: fail if attempting to use server_hardware with active profile set
+  ansible.builtin.fail:
+    msg: "Server {{ inventory_hostname }} is configured for server_hardware but is managed by a server profile in OneView"
+  when: hpe_oneview_method == 'server_hardware' and server_hardwares.serverProfileUri
+
+- name: fail if target baseline not set for server_hardware method
+  ansible.builtin.fail:
+    msg: "Server {{ inventory_hostname }} has no desired firmware baseline configured"
+  when: hpe_oneview_method == 'server_hardware' and hpe_firmware_baseline is not defined
+
+- name: fail if target hardware does not support server_hardware method
+  ansible.builtin.fail:
+    msg: "Server {{ inventory_hostname }} with model {{ server_hardwares.shortModel }} does not support server_hardware method with OneView"
+  when: hpe_oneview_method == 'server_hardware' and "Gen10" not in server_hardwares.shortModel and "Gen11" not in server_hardwares.shortModel
+
+- name: using online firmware update
+  set_fact:
+    hpe_oneview_online_update: true
+  when: server_hardware_firmware.serverFirmwareSettings.firmwareSettings.firmwareInstallType|default("FirmwareOnlyOfflineMode") != "FirmwareOnlyOfflineMode"
+
+- name: using offline firmware update
+  set_fact:
+    hpe_oneview_online_update: false
+  when: server_hardware_firmware.serverFirmwareSettings.firmwareSettings.firmwareInstallType|default("FirmwareOnlyOfflineMode") == "FirmwareOnlyOfflineMode"
+
+- name: get firmware baseline uri
+  set_fact:
+    hpe_firmware_baseline_uri: "/rest/firmware-drivers/{{ hpe_firmware_baseline }}"
+  when: hpe_oneview_method == "server_hardware"
+
+- name: query oneview for firmware baseline
+  hpe.oneview.oneview_firmware_driver_facts:
+    config: "{{ files_dir }}/oneview-config-{{ inventory_hostname }}.json"
+    uri: "{{ hpe_firmware_baseline_uri }}"
+    sessionID: "{{ session }}"
+  when: hpe_oneview_method == "server_hardware"
+  delegate_to: localhost
+
+- name: default firmware_update_required to false
+  set_fact:
+    firmware_update_required: false
+
+- name: determine if firmware update is required to meet baseline
+  set_fact:
+    firmware_update_required: true
+  when: hpe_oneview_method == "server_hardware" and (server_hardware_firmware.serverFirmwareSettings.firmwareSettings.baselineUri != hpe_firmware_baseline_uri or server_hardware_firmware.serverSettings.firmwareAndDriversInstallState.installState != 'Activated')
+
+- name: determine if server profile remediation is required
+  set_fact:
+    firmware_update_required: true
+  when: hpe_oneview_method == "server_profile" and server_profiles.0.templateCompliance == 'NonCompliant'

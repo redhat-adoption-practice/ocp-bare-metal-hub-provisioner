@@ -1,0 +1,8 @@
+- name: trigger server profile remediation
+  hpe.oneview.oneview_server_profile:
+    config: "{{ files_dir }}/oneview-config-{{ inventory_hostname }}.json"
+    sessionID: "{{ session }}"
+    state: compliant
+    data:
+      name: "{{ server_profiles.0.name }}"
+  delegate_to: localhost

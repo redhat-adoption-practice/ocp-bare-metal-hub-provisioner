@@ -1,0 +1,89 @@
+# Cluster level validations prior to upgrade
+# Will set control_plane_upgrade_required to true or false
+
+- name: fail if target version is not set
+  ansible.builtin.assert:
+    that: "target_version is defined"
+
+- name: verify kuebconfig file exists
+  ansible.builtin.stat:
+    path: "{{ installer_dir }}/auth/kubeconfig"
+  register: kubeconfig_stat
+
+- name: fail if kubeconfig file does not exist
+  ansible.builtin.fail:
+    msg: "Could not locate kubeconfig file at {{ installer_dir }}/auth/kubeconfig"
+  when: kubeconfig_stat.stat.exists == false
+
+- name: get current clusterversion object
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    validate_certs: false
+    api_version: config.openshift.io/v1
+    kind: ClusterVersion
+    name: version
+  register: cluster_version_obj
+
+- name: ensure cluster version operator is in available state
+  kubernetes.core.k8s_info:
+    kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
+    validate_certs: false
+    api_version: config.openshift.io/v1
+    kind: ClusterVersion
+    name: version
+    wait: true
+    wait_condition:
+      type: Available
+    wait_sleep: 5
+    wait_timeout: 60
+
+- name: fail if cluster version operator has non-uprgadeable status
+  ansible.builtin.fail:
+    msg: "Cluster version operator is non-upgradeable"
+  when: item.type == 'Upgradeable' and item.status == 'False'
+  loop: '{{ cluster_version_obj.resources.0.status.conditions }}'
+
+- name: warn if target version is a release image
+  ansible.builtin.debug:
+    msg: "Directly using release images as the target version should only be done for testing! No validation will be performed on the target version!"
+  when: target_version_type == "image"
+
+- name: create empty available_versions list
+  set_fact:
+    available_ocp_versions: []
+
+- name: register current cluster version
+  set_fact:
+    current_cluster_version: "{{ cluster_version_obj.resources.0.status.desired.version }}"
+
+- name: register available updates
+  set_fact:
+    available_updates: "{{ cluster_version_obj.resources.0.status.availableUpdates|default([], True) }}"
+
+- name: debug current version
+  debug:
+    var: current_cluster_version
+
+- name: debug available updates
+  debug:
+    var: available_updates
+
+- name: set control_plane_upgrade_required for version match
+  set_fact:
+    control_plane_upgrade_required: false
+  when: target_version == current_cluster_version or current_cluster_version in target_version
+
+- name: set control_plane_upgrade_required for version mismatch
+  set_fact:
+    control_plane_upgrade_required: true
+  when: target_version != current_cluster_version and current_cluster_version not in target_version
+
+- name: get available versions from clusterversion object
+  set_fact:
+    available_ocp_versions: "{{ available_ocp_versions + [item.version|default(None)] }}"
+  loop: "{{ available_updates }}"
+
+- name: verify that target version is available
+  ansible.builtin.fail:
+    msg: "Desired version is not in the list of available updates"
+  when: target_version_type == "channel" and target_version not in available_ocp_versions
