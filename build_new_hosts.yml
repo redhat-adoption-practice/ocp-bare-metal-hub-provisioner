@@ -2,6 +2,11 @@
 - hosts: utility
   gather_facts: true
   tasks:
+    - name: Create files directory if needed
+      file:
+        path: "{{files_dir}}"
+        state: directory
+
     - name: Set up ignition fragment list
       set_fact:
         additional_ignition_fragments: []
@@ -21,6 +26,64 @@
     - name: Compile combined ignition
       include_tasks: "include/create_live_ignition.yaml"
       when: additional_ignition_fragments
+
+    - name: Create per-cluster webroot
+      file:
+        path: "/var/www/html/{{cluster_name}}"
+        state: directory
+        owner: apache
+        group: apache
+      become: true
+
+    - name: Fetch RHCOS ISO
+      get_url:
+        url: "{{source_urls['rhcos_live_iso']}}"
+        dest: "{{files_dir}}/rhcos-base.iso"
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+
+    - name: Extract RHCOS ISO if needed(Podman)
+      shell:
+        #!/bin/bash
+        podman run \
+          --security-opt label=disable \
+          --rm \
+          -v {{files_dir}}:/data \
+          -w /data {{coreos_installer_image}} \
+          iso extract minimal-iso \
+          --output-rootfs rhcos-rootfs.img \
+          rhcos-base.iso \
+          rhcos-minimal.iso
+
+
+        chmod 666 {{files_dir}}/rhcos-minimal.iso
+      become: true
+      when: source_urls.rhcos_image is not defined
+
+    - name: Fetch RHCOS Root FS if needed
+      get_url:
+        url: "{{source_urls['rhcos_image']}}"
+        dest: "{{files_dir}}/rhcos-rootfs.img"
+      environment:
+        http_proxy: "{{proxy_url|default(omit)}}"
+        https_proxy: "{{proxy_url|default(omit)}}"
+      when: source_urls.rhcos_image is defined
+
+    - name: Symlink rhcos-minimal.iso for pre-4.10
+      file:
+        state: link
+        src: "{{files_dir}}/rhcos-base.iso"
+        path: "{{files_dir}}/rhcos-minimal.iso"
+      when: source_urls.rhcos_image is defined
+
+    - name: Copy RHCOS Root FS
+      copy:
+        src: "{{files_dir}}/rhcos-rootfs.img"
+        dest: /var/www/html/{{cluster_name}}/rhcos-rootfs.img
+        owner: apache
+        group: apache
+      become: true
 
 - hosts: openshift_nodes
   gather_facts: false
