@@ -1,0 +1,47 @@
+# do_update should preform the actions necessary to update firmware. 
+# It will only be run if firmware_update_required is true.
+# 
+# At the end of these tasks, the node should be powered on but may
+# still be booting.
+
+- name: Power off server
+  community.general.shutdown:
+    delay: 0
+    msg: "[Ansible] Immediate shutdown for firmware update"
+  become: true
+
+- name: Wait one minute for server to power off
+  pause:
+    seconds: 60
+
+- name: Boot server from ISO (slim iso)
+  hpilo_boot:
+    host: "{{ ilo_host }}"
+    login: "{{ ilo_user }}"
+    password: "{{ ilo_password }}"
+    media: cdrom
+    image: "{{ hpe_spp_utility_base }}/{{ hpe_spp_baseline }}/slim-boot.iso"
+    state: boot_once
+    force: true
+  delegate_to: localhost
+  when: hpe_spp_method == "slim"
+
+- name: Boot server from ISO (full iso)
+  hpilo_boot:
+    host: "{{ ilo_host }}"
+    login: "{{ ilo_user }}"
+    password: "{{ ilo_password }}"
+    media: cdrom
+    image: "{{ hpe_spp_utility_base }}/{{ hpe_spp_baseline }}/{{ hpe_spp_baseline }}.iso"
+    state: boot_once
+    force: true
+  delegate_to: localhost
+  when: hpe_spp_method == "full"
+
+# ISO should be configured to automatically apply the SPP and reboot
+# We detect done-ness by waiting for the machine to boot back into the OS
+
+- name: wait for OS to come back online
+  wait_for_connection:
+    delay: 600
+    timeout: "{{ hpe_spp_reboot_timeout | default(7200) }}"

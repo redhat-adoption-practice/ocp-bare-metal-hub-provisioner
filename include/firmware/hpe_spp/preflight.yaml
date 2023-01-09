@@ -1,0 +1,12 @@
+# Preflight tasks will be run before OpenShift update activities
+# The firmware_update_required should be set to true or false in this stage
+
+- name: determine if firmware update is required based on fact cache
+  set_fact:
+    firmware_update_required: false
+  when: (hpe_spp_last_applied|default("") == hpe_spp_baseline) and not hpe_spp_force
+
+- name: set firmware_update_required when candidate doesn't match last applied
+  set_fact:
+    firmware_update_required: true
+  when: hpe_spp_force or (hpe_spp_last_applied|default("") != hpe_spp_baseline)

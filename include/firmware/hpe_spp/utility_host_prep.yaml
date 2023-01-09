@@ -1,0 +1,57 @@
+# These steps will be run during the prepare_utility_host playbook
+# and generally will prepare shared resources for firmware updates
+
+# For HPE SPP, this will download all of the configured baselines and prepare
+# slim ISOs. Any prepared baseline removed from the list will be deleted.
+
+- name: populate hpe_spp_library
+  ansible.builtin.set_fact:
+    hpe_spp_library: "{{ hpe_spp_library|default({}) | combine({item|urlsplit('path')|basename|splitext|first : item}) }}"
+  loop: "{{ hpe_spp_sources }}"
+
+- name: List already prepared SPP baselines
+  ansible.builtin.find:
+    paths: /var/www/html/hpe-spp
+    file_type: directory
+  register: hpe_spp_prepared_find
+
+- name: Build prepared baselines list
+  ansible.builtin.set_fact:
+    hpe_spp_prepared_baselines: "{{ hpe_spp_prepared_baselines|default([]) + [item.path|basename] }}"
+  loop: "{{ hpe_spp_prepared_find.files }}"
+
+- name: Clean up old SPP web roots
+  ansible.builtin.file:
+    path: "/var/www/html/hpe-spp/{{item}}"
+    state: absent
+  become: true
+  loop: "{{ hpe_spp_prepared_baselines|default([]) }}"
+  when: item not in hpe_spp_library|default({})
+
+- name: Create parent webroot directory
+  ansible.builtin.file:
+    path: "/var/www/html/hpe-spp/{{item.key}}"
+    state: directory
+    owner: apache
+    group: apache
+  become: true
+  loop: "{{ hpe_spp_library|default({}) | dict2items }}"
+
+- name: Download plain SPP ISO to webroot
+  ansible.builtin.get_url:
+    dest: "/var/www/html/hpe-spp/{{item.key}}/{{item.key}}.iso"
+    url: "{{ item.value }}"
+    tmp_dest: "{{ build_dir }}"
+    owner: apache
+    group: apache
+  environment:
+    http_proxy: "{{proxy_url|default(omit)}}"
+    https_proxy: "{{proxy_url|default(omit)}}"
+  become: true
+  loop: "{{ hpe_spp_library|default({})| dict2items }}"
+  when: item.key not in hpe_spp_prepared_baselines|default([])
+
+- name: Create slim ISO for baseline
+  ansible.builtin.include_tasks: include/firmware/hpe_spp/_create_slim_iso.yaml
+  loop: "{{ hpe_spp_library|default({}) | dict2items }}"
+  when: hpe_spp_create_slim_isos|default(true)
