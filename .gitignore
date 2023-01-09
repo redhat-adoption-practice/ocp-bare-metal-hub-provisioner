@@ -6,3 +6,4 @@ all.yml
 *.pyc
 secret.yml
 __pycache__
+fact_cache.json

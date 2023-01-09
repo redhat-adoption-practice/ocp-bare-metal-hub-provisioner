@@ -1,0 +1,99 @@
+# This file expects to have an 'item' variable which is a dictionary items entry
+# where the key is an SPP baseline name and the value is the source URL for that baseline
+
+- name: Create temporary mountpoint for source iso
+  ansible.builtin.tempfile:
+    state: directory
+    suffix: spp-iso-source
+  register: source_mount_dir
+
+- name: Create build directory for slim iso
+  ansible.builtin.file:
+    path: "{{ build_dir }}/{{ item.key}}-slim"
+    state: directory
+
+- name: Copy data from source ISO
+  block:
+    - name: mount source iso
+      ansible.posix.mount:
+        path: "{{ source_mount_dir.path }}"
+        src: "/var/www/html/hpe-spp/{{ item.key }}/{{ item.key }}.iso"
+        fstype: iso9660
+        opts: loop
+        state: mounted
+        fstab: "{{ build_dir }}/tmp.fstab"
+      become: true
+
+    - name: get paths of pxe kernel and initrd from SPP iso
+      ansible.builtin.find:
+        paths: "{{ source_mount_dir.path }}/pxe"
+        recurse: true
+        patterns:
+          - vmlinuz
+          - initrd.img
+      register: spp_pxe_files
+
+    - name: create boot directory in target
+      ansible.builtin.file:
+        path: "{{ build_dir }}/{{ item.key}}-slim/boot/grub"
+        state: directory
+
+    - name: copy source pxe files to build directory
+      ansible.builtin.copy:
+        remote_src: true
+        src: "{{ pxe_file.path }}"
+        dest: "{{ build_dir }}/{{ item.key}}-slim/boot/"
+      loop_control:
+        loop_var: pxe_file
+      loop: "{{ spp_pxe_files.files }}"
+
+    - name: Copy Red Hat Grub2 EFI binaries
+      ansible.builtin.copy:
+        remote_src: true
+        src: "/boot/efi"
+        dest: "{{ build_dir }}/{{ item.key}}-slim"
+
+    - name: create boot/grub2 directory
+      ansible.builtin.file:
+        path: "{{ build_dir }}/{{ item.key}}-slim/boot/grub2"
+        state: directory
+
+    - name: render grub2 configuration
+      ansible.builtin.template:
+        src: "hpe-spp-grub2.j2"
+        dest: "{{ build_dir }}/{{ item.key}}-slim/{{ grub_config_path }}/grub.cfg"
+      loop_control:
+        loop_var: grub_config_path
+      loop:
+        - "boot/grub"
+        - "boot/grub2"
+
+    - name: generate slim iso with grub2-mkrescue
+      ansible.builtin.command:
+        cmd: "/bin/grub2-mkrescue -o /var/www/html/hpe-spp/{{ item.key }}/slim-boot.iso {{ build_dir }}/{{ item.key}}-slim"
+      become: true
+  always:
+    - name: unmount source iso
+      ansible.posix.mount:
+        path: "{{ source_mount_dir.path }}"
+        src: "/var/www/html/hpe-spp/{{ item.key }}/{{ item.key }}.iso"
+        fstype: iso9660
+        opts: loop
+        state: unmounted
+        fstab: "{{ build_dir }}/tmp.fstab"
+      become: true
+
+    - name: remove tempoary mountpoint
+      ansible.builtin.file:
+        path: "{{ source_mount_dir.path }}"
+        state: absent
+
+    - name: remove build direcctory
+      ansible.builtin.file:
+        path: "{{ build_dir }}/{{ item.key}}-slim"
+        state: absent
+
+    - name: remove temporary fstab
+      ansible.builtin.file:
+        path: "{{ build_dir }}/tmp.fstab"
+        state: absent

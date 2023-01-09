@@ -1,0 +1,3 @@
+# These steps will be run during the prepare_utility_host playbook
+# and generally will prepare shared resources for firmware updates
+

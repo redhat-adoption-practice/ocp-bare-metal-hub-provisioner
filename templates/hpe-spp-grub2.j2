@@ -1,0 +1,25 @@
+terminal_input console
+terminal_output console
+set timeout=10
+set default=0
+set CTTY=-1
+
+#Enable serial port
+if terminal_output --append serial_com0
+then
+    terminal_input --append serial_com0
+fi
+if [ ${CTTY} != -1 ]; then
+    set timeout=3
+    set linuxconsole="console=ttyS${CTTY},115200n8"
+    set default=1
+else
+fi
+
+menuentry "Automatic Firmware Update SPP {{ item.key }}" {
+  set gfxpayload=keep
+  echo "Loading kernel..."
+  linux /boot/vmlinuz media=net iso1={{ hpe_spp_utility_base }}/{{ item.key }}/{{ item.key }}.iso iso1mnt=/mnt/bootdevice root=/dev/ram0 splash quiet hp_fibre cdcache TYPE=AUTOMATIC AUTOPOWEROFFONSUCCESS=no AUTOREBOOTONSUCCESS=yes modprobe.blacklist=aacraid,mpt3sas ${linuxconsole}
+  echo "Loading initial ramdisk..."
+  initrd /boot/initrd.img
+}
