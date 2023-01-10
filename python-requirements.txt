@@ -1,0 +1,3 @@
+hpeOneView==8.0.0
+kubernetes==25.3.0
+python-hpilo==4.4.3

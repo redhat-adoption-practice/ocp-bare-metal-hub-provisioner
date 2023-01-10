@@ -7,3 +7,4 @@ all.yml
 secret.yml
 __pycache__
 fact_cache.json
+context
