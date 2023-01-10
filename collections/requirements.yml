@@ -1,6 +1,7 @@
 ---
 collections:
   - name: community.general
+  - name: kubernetes.core
   - name: dellemc.openmanage
   - name: ansible.posix
   - name: hpe.oneview
