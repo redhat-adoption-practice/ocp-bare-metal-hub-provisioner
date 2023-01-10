@@ -80,7 +80,7 @@
 - name: verify that target version is available
   ansible.builtin.fail:
     msg: "Desired version is not in the list of available updates"
-  when: target_version_type == "channel" and target_version not in available_ocp_versions
+  when: target_version_type == "channel" and target_version not in available_ocp_versions and control_plane_upgrade_required == true
 
 - name: fail if cluster version operator has non-uprgadeable status
   ansible.builtin.fail:
