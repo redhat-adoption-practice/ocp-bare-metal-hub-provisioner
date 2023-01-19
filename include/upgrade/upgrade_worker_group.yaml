@@ -1,4 +1,6 @@
 - name: unpause worker group machine config pool
+  run_once: true
+  delegate_to: localhost
   kubernetes.core.k8s:
     kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
     definition:
@@ -14,6 +16,8 @@
     minutes: 1
 
 - name: wait for machine config pool to roll out
+  run_once: true
+  delegate_to: localhost
   kubernetes.core.k8s_info:
     kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
     api_version: machineconfiguration.openshift.io/v1
