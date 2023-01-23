@@ -38,64 +38,11 @@
         path: "{{ build_dir }}/{{ item.key}}-slim/boot/grub"
         state: directory
 
-    - name: get path to initrd image
-      ansible.builtin.set_fact:
-        initrd_image_path={{ (spp_pxe_files.files | selectattr("path", "search", ".*initrd.*") | first).path }}
-
-    - name: get initrd image information
-      ansible.builtin.stat:
-        path: "{{ initrd_image_path }}"
-      register: initrd_image_info
-
-    - name: get initrd image compression format
-      ansible.builtin.set_fact:
-        initrd_is_gzip={{ initrd_image_info.stat.mimetype | regex_search('gzip', ignorecase=True) is not none }}
-        initrd_is_lzma={{ initrd_image_info.stat.mimetype | regex_search('lzma', ignorecase=True) is not none }}
-
-    - name: Abort if initrd image format is not known
-      fail:
-        msg: The initrd image compression format is unknown
-      when: not initrd_is_lzma and not initrd_is_gzip
-
-    - name: add httpfs2-ssl to initrd
-      block:
-        - name: create temporary initrd root
-          ansible.builtin.tempfile:
-            suffix: initrd
-            state: directory
-          register: initrd_tmp
-        - name: uncompress and extract initrd (lzma)
-          ansible.builtin.shell:
-            cmd: "xz -dc < {{ initrd_image_path }} | cpio -idmv"
-            chdir: "{{ initrd_tmp.path }}"
-          when: initrd_is_lzma
-        - name: uncompress and extract initrd (gzip)
-          ansible.builtin.shell:
-            cmd: "zcat {{ initrd_image_path }} | cpio -idmv"
-            chdir: "{{ initrd_tmp.path }}"
-          when: initrd_is_gzip
-        - name: copy httpfs2-ssl into temporary initrd root
-          ansible.builtin.copy:
-            src: "{{ playbook_dir }}/files/httpfs2-ssl"
-            dest: "{{ initrd_tmp.path }}/sbin/"
-            mode: 0755
-        - name: create updated initrd image (lzma)
-          ansible.builtin.shell:
-            cmd: find . 2>/dev/null | cpio -o -c -R root:root | xz -9 --format=lzma > {{ build_dir }}/{{ item.key }}-slim/boot/initrd.img
-            chdir: "{{ initrd_tmp.path }}"
-          when: initrd_is_lzma
-        - name: create updated initrd image (gzip)
-          ansible.builtin.shell:
-            cmd: find . | cpio -o -c -R root:root | gzip -9 > {{ build_dir }}/{{ item.key }}-slim/boot/initrd.img
-            chdir: "{{ initrd_tmp.path }}"
-          when: initrd_is_gzip
-
     - name: copy source pxe files to build directory
       ansible.builtin.copy:
         remote_src: true
         src: "{{ pxe_file.path }}"
         dest: "{{ build_dir }}/{{ item.key}}-slim/boot/"
-        force: false
       loop_control:
         loop_var: pxe_file
       loop: "{{ spp_pxe_files.files }}"
@@ -149,9 +96,4 @@
     - name: remove temporary fstab
       ansible.builtin.file:
         path: "{{ build_dir }}/tmp.fstab"
-        state: absent
-
-    - name: remove temporary initrd root
-      ansible.builtin.file:
-        path: "{{ initrd_tmp.path }}"
         state: absent
