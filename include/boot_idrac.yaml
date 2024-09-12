@@ -18,7 +18,7 @@
     username: "{{ idrac_user }}"
     password: "{{ idrac_password }}"
     virtual_media:
-      image_url: "{{utility_http_scheme}}://{{utility_host_ilo}}:{{utility_http_port}}/{{cluster_name}}/boot-isos/isos/{{inventory_hostname}}.iso"
+      image_url: "{{provisioner_http_scheme}}://{{provisioner_host_ilo}}:{{provisioner_http_port}}/{{cluster_name}}/boot-isos/isos/{{inventory_hostname}}.iso"
       media_types:
         - CD
   delegate_to: localhost

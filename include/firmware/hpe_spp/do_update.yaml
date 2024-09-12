@@ -1,6 +1,6 @@
-# do_update should preform the actions necessary to update firmware. 
+# do_update should preform the actions necessary to update firmware.
 # It will only be run if firmware_update_required is true.
-# 
+#
 # At the end of these tasks, the node should be powered on but may
 # still be booting.
 
@@ -20,7 +20,7 @@
     login: "{{ ilo_user }}"
     password: "{{ ilo_password }}"
     media: cdrom
-    image: "{{ hpe_spp_utility_base }}/{{ hpe_spp_baseline }}/slim-boot.iso"
+    image: "{{ hpe_spp_provisioner_base }}/{{ hpe_spp_baseline }}/slim-boot.iso"
     state: boot_once
     force: true
   delegate_to: localhost
@@ -32,7 +32,7 @@
     login: "{{ ilo_user }}"
     password: "{{ ilo_password }}"
     media: cdrom
-    image: "{{ hpe_spp_utility_base }}/{{ hpe_spp_baseline }}/{{ hpe_spp_baseline }}.iso"
+    image: "{{ hpe_spp_provisioner_base }}/{{ hpe_spp_baseline }}/{{ hpe_spp_baseline }}.iso"
     state: boot_once
     force: true
   delegate_to: localhost

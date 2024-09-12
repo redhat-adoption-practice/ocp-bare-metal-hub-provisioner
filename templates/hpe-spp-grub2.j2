@@ -19,7 +19,7 @@ fi
 menuentry "Automatic Firmware Update SPP {{ item.key }}" {
   set gfxpayload=keep
   echo "Loading kernel..."
-  linux /boot/vmlinuz media=net iso1={{ hpe_spp_utility_base }}/{{ item.key }}/{{ item.key }}.iso iso1mnt=/mnt/bootdevice root=/dev/ram0 splash quiet hp_fibre cdcache TYPE=AUTOMATIC AUTOPOWEROFFONSUCCESS=no AUTOREBOOTONSUCCESS=yes modprobe.blacklist=aacraid,mpt3sas ${linuxconsole}
+  linux /boot/vmlinuz media=net iso1={{ hpe_spp_provisioner_base }}/{{ item.key }}/{{ item.key }}.iso iso1mnt=/mnt/bootdevice root=/dev/ram0 splash quiet hp_fibre cdcache TYPE=AUTOMATIC AUTOPOWEROFFONSUCCESS=no AUTOREBOOTONSUCCESS=yes modprobe.blacklist=aacraid,mpt3sas ${linuxconsole}
   echo "Loading initial ramdisk..."
   initrd /boot/initrd.img
 }

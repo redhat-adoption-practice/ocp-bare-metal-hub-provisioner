@@ -1,6 +1,6 @@
 ---
 - name: Cluster upgrade preflight
-  hosts: utility
+  hosts: provisioner
   gather_facts: true
   any_errors_fatal: true
   vars:
@@ -26,7 +26,7 @@
       when: node_group is defined and node_group in target_node_groups
 
 - name: Control plane upgrade
-  hosts: utility
+  hosts: provisioner
   gather_facts: false
   vars:
     target_node_groups: []
@@ -49,7 +49,7 @@
       loop: "{{ target_node_groups }}"
 
 - name: Cluster upgrade cleanup
-  hosts: utility
+  hosts: provisioner
   gather_facts: false
   vars:
     target_node_groups: []

@@ -16,6 +16,6 @@
     login: "{{ilo_user}}"
     password: "{{ilo_password}}"
     media: cdrom
-    image: "{{utility_http_scheme}}://{{utility_host_ilo}}:{{utility_http_port}}/{{cluster_name}}/boot-isos/isos/{{inventory_hostname}}.iso"
+    image: "{{provisioner_http_scheme}}://{{provisioner_host_ilo}}:{{provisioner_http_port}}/{{cluster_name}}/boot-isos/isos/{{inventory_hostname}}.iso"
     state: boot_once
   delegate_to: localhost

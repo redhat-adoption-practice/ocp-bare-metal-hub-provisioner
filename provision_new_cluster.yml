@@ -1,5 +1,5 @@
 ---
-- hosts: utility
+- hosts: provisioner
   gather_facts: true
   vars:
     reprovision: no
@@ -155,7 +155,7 @@
       include_tasks: include/coreos_build_iso.yaml
       when: provision == true
 
-- hosts: utility
+- hosts: provisioner
   gather_facts: true
   tasks:
     - name: Copy ignition files
@@ -177,7 +177,7 @@
       include_tasks: "include/boot_{{pm_type}}.yaml"
       when: provision == true
 
-- hosts: utility
+- hosts: provisioner
   gather_facts: true
   tasks:
     - name: Wait for bootstrap
@@ -194,11 +194,11 @@
       include_tasks: "include/cleanup_{{pm_type}}.yaml"
       when: provision == true
 
-- hosts: utility
+- hosts: provisioner
   gather_facts: true
   tasks:
-    - name: Clean up utilty host
-      include_tasks: "include/cleanup_utility.yaml"
+    - name: Clean up provisioner host
+      include_tasks: "include/cleanup_provisioner.yaml"
 
 - hosts: bootstraps
   gather_facts: false

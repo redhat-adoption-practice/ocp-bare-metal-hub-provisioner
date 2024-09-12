@@ -1,20 +1,20 @@
 ---
-- hosts: utility
+- hosts: provisioner
   gather_facts: true
   become: true
   tasks:
-    - name: Install utility host packages
+    - name: Install provisioner host packages
       package:
         name: "{{item}}"
         state: installed
-      with_items: "{{utility_host_packages}}"
+      with_items: "{{provisioner_host_packages}}"
 
-    - name: Enable and start utility host services
+    - name: Enable and start provisioner host services
       service:
         name: "{{item}}"
         state: started
         enabled: yes
-      with_items: "{{utility_host_services}}"
+      with_items: "{{provisioner_host_services}}"
 
     - name: Create local bin directory
       file:
@@ -27,7 +27,7 @@
         state: directory
 
     - name: Run prep tasks for firmware update methods
-      ansible.builtin.include_tasks: "include/firmware/{{ fw_module }}/utility_host_prep.yaml"
+      ansible.builtin.include_tasks: "include/firmware/{{ fw_module }}/provisioner_host_prep.yaml"
       loop: "{{ enabled_firmware_modules }}"
       loop_control:
         loop_var: fw_module
@@ -77,7 +77,7 @@
         source: pull
         name: "{{coreos_installer_image}}"
         state: present
-      when: utility_host_container_runtime == "docker"
+      when: provisioner_host_container_runtime == "docker"
       environment:
         http_proxy: "{{proxy_url|default(omit)}}"
         https_proxy: "{{proxy_url|default(omit)}}"
@@ -86,7 +86,7 @@
       podman_image:
         name: "{{coreos_installer_image}}"
         state: present
-      when: utility_host_container_runtime == "podman"
+      when: provisioner_host_container_runtime == "podman"
       environment:
         http_proxy: "{{proxy_url|default(omit)}}"
         https_proxy: "{{proxy_url|default(omit)}}"
@@ -96,7 +96,7 @@
         source: pull
         name: "{{fcct_image}}"
         state: present
-      when: utility_host_container_runtime == "docker"
+      when: provisioner_host_container_runtime == "docker"
       environment:
         http_proxy: "{{proxy_url|default(omit)}}"
         https_proxy: "{{proxy_url|default(omit)}}"
@@ -105,7 +105,7 @@
       podman_image:
         name: "{{fcct_image}}"
         state: present
-      when: utility_host_container_runtime == "podman"
+      when: provisioner_host_container_runtime == "podman"
       environment:
         http_proxy: "{{proxy_url|default(omit)}}"
         https_proxy: "{{proxy_url|default(omit)}}"

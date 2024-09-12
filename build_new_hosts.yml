@@ -1,5 +1,5 @@
 ---
-- hosts: utility
+- hosts: provisioner
   gather_facts: true
   tasks:
     - name: Create files directory if needed
@@ -96,7 +96,7 @@
       include_tasks: include/coreos_build_iso.yaml
       when: provision == true
 
-- hosts: utility
+- hosts: provisioner
   gather_facts: true
   tasks:
     - name: Copy ignition files
@@ -125,8 +125,8 @@
       include_tasks: "include/cleanup_{{pm_type}}.yaml"
       when: provision == true
 
-- hosts: utility
+- hosts: provisioner
   gather_facts: true
   tasks:
-    - name: Clean up utilty host
-      include_tasks: "include/cleanup_utility.yaml"
+    - name: Clean up provisioner host
+      include_tasks: "include/cleanup_provisioner.yaml"
