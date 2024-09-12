@@ -1,52 +1,54 @@
 - name: Make build root directories
-  file:
-    dest: "{{item}}"
+  ansible.builtin.file:
+    dest: "{{ item }}"
     state: directory
+    mode: "0644"
   delegate_to: localhost
   with_items:
-    - "{{iso_tmp_dir}}"
-    - "{{iso_tmp_dir}}/ocp-iso-build"
-    - "{{iso_tmp_dir}}/ocp-iso-build/isos"
+    - "{{ iso_tmp_dir }}"
+    - "{{ iso_tmp_dir }}/ocp-iso-build"
+    - "{{ iso_tmp_dir }}/ocp-iso-build/isos"
 
 - name: Copy minimal ISO for host
-  copy:
-    src: "{{files_dir}}/rhcos-minimal.iso"
-    dest: "{{iso_tmp_dir}}/ocp-iso-build/isos/{{inventory_hostname}}.iso"
+  ansible.builtin.copy:
+    src: "{{ files_dir }}/rhcos-minimal.iso"
+    dest: "{{ iso_tmp_dir }}/ocp-iso-build/isos/{{ inventory_hostname }}.iso"
+    mode: "0644"
   delegate_to: localhost
 
 - name: Initialize coreos-installer variables
-  set_fact:
+  ansible.builtin.set_fact:
     coreos_installer_args:
-      - "--dest-device /dev/{{deploy_disk}}"
-      - "--dest-ignition /install/{{role}}.ign"
+      - "--dest-device /dev/{{ deploy_disk }}"
+      - "--dest-ignition /install/{{ role }}.ign"
     coreos_kernel_args: "{{ lookup('template', 'kargs.j2').split() }}"
 
 - name: Check for live ignition file
-  stat:
-    path: "{{files_dir}}/combined-ignition.ign"
+  ansible.builtin.stat:
+    path: "{{ files_dir }}/combined-ignition.ign"
   register: live_ignition_file
   delegate_to: localhost
 
 - name: Build customized ISO (4.10+)
-  shell: |
+  ansible.builtin.shell: |
     #!/bin/bash
     podman run \
       --security-opt label=disable \
       --rm \
-      -v {{files_dir}}:/data \
-      -v {{installer_dir}}:/install \
-      -v {{iso_tmp_dir}}/ocp-iso-build/isos:/iso \
+      -v {{ files_dir }}:/data \
+      -v {{ installer_dir }}:/install \
+      -v {{iso_tmp_dir }}/ocp-iso-build/isos:/iso \
       -w /iso \
-      {{coreos_installer_image}} \
-      iso customize -f /iso/{{inventory_hostname}}.iso \
-      {{ coreos_installer_args|join(' ')|default(omit) }} \
+      {{ coreos_installer_image }} \
+      iso customize -f /iso/{{ inventory_hostname }}.iso \
+      {{ coreos_installer_args | join(' ') | default(omit) }} \
       {% if live_ignition_file.stat.exists %}
       --live-ignition /data/combined-ignition.ign \
       {% endif %}
-      --live-karg-append coreos.live.rootfs_url={{provisioner_http_scheme}}://{{provisioner_host}}:{{provisioner_http_port}}/{{cluster_name}}/rhcos-rootfs.img \
-      --live-karg-append {{ coreos_kernel_args|join(' --live-karg-append ') }} \
+      --live-karg-append coreos.live.rootfs_url={{ provisioner_http_scheme }}://{{ provisioner_host }}:{{ provisioner_http_port }}/{{ cluster_name }}/rhcos-rootfs.img \
+      --live-karg-append {{ coreos_kernel_args | join(' --live-karg-append ') }} \
       {% if enable_kargs_in_dest %}
-      --dest-karg-append {{ coreos_kernel_args|join(' --dest-karg-append ') }}
+      --dest-karg-append {{ coreos_kernel_args | join(' --dest-karg-append ') }}
       {% endif %}
 
   become: true
@@ -54,39 +56,39 @@
   when: source_urls.rhcos_image is not defined
 
 - name: Embed kernel args (pre-4.10)
-  shell: |
+  ansible.builtin.shell: |
     #!/bin/bash
     podman run \
       --security-opt label=disable \
       --rm \
-      -v {{files_dir}}:/data \
-      -v {{installer_dir}}:/install \
-      -v {{iso_tmp_dir}}/ocp-iso-build/isos:/iso \
+      -v {{ files_dir }}:/data \
+      -v {{ installer_dir }}:/install \
+      -v {{ iso_tmp_dir }}/ocp-iso-build/isos:/iso \
       -w /iso \
-      {{coreos_installer_image}} \
-      iso kargs modify /iso/{{inventory_hostname}}.iso \
+      {{ coreos_installer_image }} \
+      iso kargs modify /iso/{{ inventory_hostname }}.iso \
       {% if not live_ignition_file.stat.exists and not enable_kargs_in_dest %}
-      -a coreos.inst.install_dev={{deploy_disk}} \
+      -a coreos.inst.install_dev={{ deploy_disk }} \
       {% endif %}
-      -a coreos.inst.ignition_url={{provisioner_http_scheme}}://{{provisioner_host}}:{{provisioner_http_port}}/{{cluster_name}}/{{role}}.ign \
-      -a {{ coreos_kernel_args|join(' -a ') }}
+      -a coreos.inst.ignition_url={{ provisioner_http_scheme }}://{{ provisioner_host }}:{{ provisioner_http_port }}/{{ cluster_name }}/{{ role }}.ign \
+      -a {{ coreos_kernel_args | join(' -a ') }}
 
   become: true
   delegate_to: localhost
   when: source_urls.rhcos_image is defined
 
 - name: Embed live ignition (pre-4.10)
-  shell: |
+  ansible.builtin.shell: |
     #!/bin/bash
     podman run \
       --security-opt label=disable \
       --rm \
-      -v {{files_dir}}:/data \
-      -v {{installer_dir}}:/install \
-      -v {{iso_tmp_dir}}/ocp-iso-build/isos:/iso \
+      -v {{ files_dir }}:/data \
+      -v {{ installer_dir }}:/install \
+      -v {{ iso_tmp_dir }}/ocp-iso-build/isos:/iso \
       -w /iso \
-      {{coreos_installer_image}} \
-      iso ignition embed /iso/{{inventory_hostname}}.iso \
+      {{ coreos_installer_image }} \
+      iso ignition embed /iso/{{ inventory_hostname }}.iso \
       -f \
       -i /data/combined-ignition.ign
 

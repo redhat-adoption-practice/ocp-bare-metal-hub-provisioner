@@ -1,3 +1,3 @@
-#- name: unpause all machine config pools
+# - name: unpause all machine config pools
 
-#- name: remove alarm silence
+# - name: remove alarm silence

@@ -1,4 +1,4 @@
-- name: ensure node is uncordoned
+- name: Ensure node is uncordoned
   kubernetes.core.k8s_drain:
     kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
     state: uncordon
@@ -10,7 +10,6 @@
   delay: 10
   when: node_group == active_node_group
 
-- name: run post-node-up hook
-  include_tasks: "hooks/post_node_up.yaml"
+- name: Run post-node-up hook
+  ansible.builtin.include_tasks: "hooks/post_node_up.yaml"
   when: node_group == active_node_group
-

@@ -1,12 +1,11 @@
-- name: include node upgrade tasks for node group
-  include_tasks: "include/upgrade/upgrade_worker_node.yaml"
-  when: node_group is defined and node_group in target_node_groups and node_group == active_node_group and firmware_update_required == true
+- name: Include node upgrade tasks for node group
+  ansible.builtin.include_tasks: "include/upgrade/upgrade_worker_node.yaml"
+  when: node_group is defined and node_group in target_node_groups and node_group == active_node_group and firmware_update_required
 
-- name: include machine pool upgrade tasks
+- name: Include machine pool upgrade tasks
   ansible.builtin.include_tasks: "include/upgrade/upgrade_worker_group.yaml"
-  when: fw_upgrade_only != true and active_node_group in target_node_groups and control_plane_upgrade_required == true
+  when: fw_upgrade_only != true and active_node_group in target_node_groups and control_plane_upgrade_required
 
-- name: include node cleanup tasks for node group
-  include_tasks: "include/upgrade/node_cleanup.yaml"
-  when: node_group is defined and node_group in target_node_groups and node_group == active_node_group 
-
+- name: Include node cleanup tasks for node group
+  ansible.builtin.include_tasks: "include/upgrade/node_cleanup.yaml"
+  when: node_group is defined and node_group in target_node_groups and node_group == active_node_group

@@ -1,9 +1,0 @@
-- name: Clean up build root directories
-  file:
-    dest: "{{item}}"
-    state: absent
-  delegate_to: localhost
-  with_items:
-    - "{{iso_tmp_dir}}/ocp-iso-build"
-    - "{{iso_tmp_dir}}/ocp-iso-build/isos"
-

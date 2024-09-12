@@ -1,4 +1,4 @@
-- name: verify nodes to upgrade are ready in k8s
+- name: Verify nodes to upgrade are ready in k8s
   kubernetes.core.k8s_info:
     kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
     validate_certs: false
@@ -11,11 +11,11 @@
     wait_timeout: 10
   delegate_to: localhost
 
-- name: verify nodes to upgrade are reaachable
+- name: Verify nodes to upgrade are reaachable
   ansible.builtin.wait_for_connection:
     delay: 0
     timeout: 30
   when: upgrade_require_node_connection|default(True)
 
-- name: run firmware plugin preflight
+- name: Run firmware plugin preflight
   ansible.builtin.include_tasks: "include/firmware/{{ firmware_update_method }}/preflight.yaml"

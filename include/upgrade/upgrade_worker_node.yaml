@@ -1,8 +1,8 @@
-- name: run pre-node-down hook
+- name: Run pre-node-down hook
   ansible.builtin.include_tasks: "hooks/pre_node_down.yaml"
   when: node_group == active_node_group
 
-- name: cordon and drain node
+- name: Cordon and drain node
   kubernetes.core.k8s_drain:
     kubeconfig: "{{ installer_dir }}/auth/kubeconfig"
     state: drain
@@ -19,10 +19,10 @@
   when: node_group == active_node_group
   delegate_to: localhost
 
-- name: execute firmware upgrade if needed
-  ansible.builtin.include_tasks: "include/firmware/{{ firmware_update_method }}/do_update.yaml" 
+- name: Execute firmware upgrade if needed
+  ansible.builtin.include_tasks: "include/firmware/{{ firmware_update_method }}/do_update.yaml"
   when: node_group == active_node_group
 
-- name: execute firmware post-update
-  ansible.builtin.include_tasks: "include/firmware/{{ firmware_update_method }}/post_update.yaml" 
+- name: Execute firmware post-update
+  ansible.builtin.include_tasks: "include/firmware/{{ firmware_update_method }}/post_update.yaml"
   when: node_group == active_node_group

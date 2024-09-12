@@ -1,12 +1,14 @@
+---
 - name: Render FCCT Fragment
-  template:
+  ansible.builtin.template:
     src: wipe-disks-fcct-fragment.yaml.j2
-    dest: "{{files_dir}}/wipe-disks-fcct-fragment.yaml"
+    dest: "{{ files_dir }}/wipe-disks-fcct-fragment.yaml"
+    mode: "0644"
 
 - name: Save fragment path
-  set_fact:
-    wipe_disks_fragment_path: "{{files_dir}}/wipe-disks-fcct-fragment.yaml"
+  ansible.builtin.set_fact:
+    wipe_disks_fragment_path: "{{ files_dir }}/wipe-disks-fcct-fragment.yaml"
 
 - name: Register FCCT Fragment
-  set_fact:
+  ansible.builtin.set_fact:
     additional_ignition_fragments: "{{ additional_ignition_fragments + [wipe_disks_fragment_path] }}"

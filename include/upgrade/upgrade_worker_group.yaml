@@ -1,4 +1,4 @@
-- name: unpause worker group machine config pool
+- name: Unpause worker group machine config pool
   run_once: true
   delegate_to: localhost
   kubernetes.core.k8s:
@@ -11,11 +11,11 @@
       spec:
         paused: false
 
-- name: give MCO one minute to begin updates
+- name: Give MCO one minute to begin updates
   ansible.builtin.pause:
     minutes: 1
 
-- name: wait for machine config pool to roll out
+- name: Wait for machine config pool to roll out
   run_once: true
   delegate_to: localhost
   kubernetes.core.k8s_info:

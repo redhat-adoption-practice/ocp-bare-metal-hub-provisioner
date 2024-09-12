@@ -1,216 +1,234 @@
 ---
-- hosts: provisioner
+- name: Provision New Cluster
+  hosts: provisioner
   gather_facts: true
   vars:
     reprovision: no
   tasks:
     - name: Set up ignition fragment list
-      set_fact:
+      ansible.builtin.set_fact:
         additional_ignition_fragments: []
 
     - name: Clean up old install directory when reprovisioning
-      file:
-        path: "{{installer_dir}}"
+      ansible.builtin.file:
+        path: "{{ installer_dir }}"
         state: absent
       when: reprovision == "yes"
 
     - name: Clean up old files directory when reprovisioning
-      file:
-        path: "{{files_dir}}"
+      ansible.builtin.file:
+        path: "{{ files_dir }}"
         state: absent
       when: reprovision == "yes"
 
     - name: Check if installation config directory exists
-      stat:
-        path: "{{installer_dir}}"
+      ansible.builtin.stat:
+        path: "{{ installer_dir }}"
       register: stat_result
 
     - name: Fail if conflicting install directory exists
-      fail:
-        msg: "{{installer_dir}} exists! Remove before creating a new cluster."
+      ansible.builtin.fail:
+        msg: "{{ installer_dir }} exists! Remove before creating a new cluster."
       when: stat_result.stat.exists
 
     - name: Create installation config directory
-      file:
-        path: "{{installer_dir}}"
+      ansible.builtin.file:
+        path: "{{ installer_dir }}"
         state: directory
+        mode: "0755"
 
     - name: Create installation config directory
-      file:
-        path: "{{files_dir}}"
+      ansible.builtin.file:
+        path: "{{ files_dir }}"
         state: directory
-
+        mode: "0755"
 
     - name: Create install-config.yaml
-      template:
+      ansible.builtin.template:
         src: install-config.yaml.j2
-        dest: "{{files_dir}}/install-config.yaml"
+        dest: "{{ files_dir }}/install-config.yaml"
+        mode: "0644"
 
     - name: Create per-cluster webroot
-      file:
-        path: "/var/www/html/{{cluster_name}}"
+      ansible.builtin.file:
+        path: "/var/www/html/{{ cluster_name }}"
         state: directory
         owner: apache
         group: apache
+        mode: "0644"
       become: true
 
     - name: Fetch RHCOS ISO
-      get_url:
-        url: "{{source_urls['rhcos_live_iso']}}"
-        dest: "{{files_dir}}/rhcos-base.iso"
+      ansible.builtin.get_url:
+        url: "{{ source_urls['rhcos_live_iso'] }}"
+        dest: "{{ files_dir }}/rhcos-base.iso"
+        mode: "0644"
       environment:
-        http_proxy: "{{proxy_url|default(omit)}}"
-        https_proxy: "{{proxy_url|default(omit)}}"
+        http_proxy: "{{ proxy_url | default(omit) }}"
+        https_proxy: "{{ proxy_url | default(omit) }}"
 
     - name: Extract RHCOS ISO if needed(Podman)
-      shell:
+      ansible.builtin.shell:
         #!/bin/bash
         podman run \
           --security-opt label=disable \
           --rm \
-          -v {{files_dir}}:/data \
-          -w /data {{coreos_installer_image}} \
+          -v {{ files_dir }}:/data \
+          -w /data {{ coreos_installer_image }} \
           iso extract minimal-iso \
           --output-rootfs rhcos-rootfs.img \
           rhcos-base.iso \
           rhcos-minimal.iso
 
 
-        chmod 666 {{files_dir}}/rhcos-minimal.iso
+        chmod 666 {{ files_dir }}/rhcos-minimal.iso
       become: true
       when: source_urls.rhcos_image is not defined
 
     - name: Fetch RHCOS Root FS if needed
-      get_url:
-        url: "{{source_urls['rhcos_image']}}"
-        dest: "{{files_dir}}/rhcos-rootfs.img"
+      ansible.builtin.get_url:
+        url: "{{ source_urls['rhcos_image'] }}"
+        dest: "{{ files_dir }}/rhcos-rootfs.img"
+        mode: "0644"
       environment:
-        http_proxy: "{{proxy_url|default(omit)}}"
-        https_proxy: "{{proxy_url|default(omit)}}"
+        http_proxy: "{{ proxy_url | default(omit) }}"
+        https_proxy: "{{ proxy_url | default(omit) }}"
       when: source_urls.rhcos_image is defined
 
     - name: Symlink rhcos-minimal.iso for pre-4.10
-      file:
+      ansible.builtin.file:
         state: link
-        src: "{{files_dir}}/rhcos-base.iso"
-        path: "{{files_dir}}/rhcos-minimal.iso"
+        src: "{{ files_dir }}/rhcos-base.iso"
+        path: "{{ files_dir }}/rhcos-minimal.iso"
       when: source_urls.rhcos_image is defined
 
     - name: Copy RHCOS Root FS
-      copy:
-        src: "{{files_dir}}/rhcos-rootfs.img"
-        dest: /var/www/html/{{cluster_name}}/rhcos-rootfs.img
+      ansible.builtin.copy:
+        src: "{{ files_dir }}/rhcos-rootfs.img"
+        dest: /var/www/html/{{ cluster_name }}/rhcos-rootfs.img
         owner: apache
         group: apache
+        mode: "0644"
       become: true
 
     - name: Create TLS CA ignition
-      include_tasks: "include/tls_ignition_patch.yaml"
+      ansible.builtin.include_tasks: "include/tls_ignition_patch.yaml"
       when: tls_additional_cas
 
     - name: Create disk wiping ignition
-      include_tasks: "include/wipe_disks_patch.yaml"
-      when: wipe_disks == true
+      ansible.builtin.include_tasks: "include/wipe_disks_patch.yaml"
+      when: wipe_disks
 
     - name: Create installer customization ignition
-      include_tasks: "include/installer_customization_patch.yaml"
-      when: enable_kargs_in_dest == true and source_urls.rhcos_image is defined
+      ansible.builtin.include_tasks: "include/installer_customization_patch.yaml"
+      when: enable_kargs_in_dest and source_urls.rhcos_image is defined
+
     - name: Compile combined ignition
-      include_tasks: "include/create_live_ignition.yaml"
+      ansible.builtin.include_tasks: "include/create_live_ignition.yaml"
       when: additional_ignition_fragments
 
     - name: Copy install-config
-      copy:
-        src: "{{files_dir}}/install-config.yaml"
-        dest: "{{installer_dir}}/install-config.yaml"
-        remote_src: yes
+      ansible.builtin.copy:
+        src: "{{ files_dir }}/install-config.yaml"
+        dest: "{{ installer_dir }}/install-config.yaml"
+        mode: "0644"
+        remote_src: true
 
     - name: Create manifests
-      shell: "{{bin_dir}}/openshift-install --dir={{installer_dir}} create manifests"
+      ansible.builtin.shell: "{{ bin_dir }}/openshift-install --dir={{ installer_dir }} create manifests"
 
     - name: Create custom Network Operator config
-      template:
+      ansible.builtin.template:
         src: cluster-network-operator-config.yaml.j2
-        dest: "{{installer_dir}}/manifests/cluster-network-03-config.yml"
+        dest: "{{ installer_dir }}/manifests/cluster-network-03-config.yml"
+        mode: "0644"
       when: customize_network_operator_config
 
     - name: Configure disk encryption
-      include_tasks: "include/enable_disk_encryption.yaml"
+      ansible.builtin.include_tasks: "include/enable_disk_encryption.yaml"
       when: encrypt_master_disks or encrypt_worker_disks
 
     - name: Set masters to unschedulable
-      shell: "sed -i s/true/false/ {{installer_dir}}/manifests/cluster-scheduler-02-config.yml"
+      ansible.builtin.shell: "sed -i s/true/false/ {{ installer_dir }}/manifests/cluster-scheduler-02-config.yml"
 
     - name: Create base ignition configs
-      shell: "{{bin_dir}}/openshift-install --dir={{installer_dir}} create ignition-configs"
+      ansible.builtin.shell: "{{ bin_dir }}/openshift-install --dir={{ installer_dir }} create ignition-configs"
 
-- hosts: openshift_nodes
+- name: Build ISOs
+  hosts: openshift_nodes
   gather_facts: false
   tasks:
     - name: Gather node information
-      include_tasks: "include/gather_{{pm_type}}_facts.yaml"
-      when: provision == true
+      ansible.builtin.include_tasks: "include/gather_{{ pm_type }}_facts.yaml"
+      when: provision
 
     - name: Build ISOs
-      include_tasks: include/coreos_build_iso.yaml
-      when: provision == true
+      ansible.builtin.include_tasks: include/coreos_build_iso.yaml
+      when: provision
 
-- hosts: provisioner
+- name: Coy ignition files and upload ISOs
+  hosts: provisioner
   gather_facts: true
   tasks:
     - name: Copy ignition files
-      shell: "cp {{installer_dir}}/*.ign /var/www/html/{{cluster_name}} && chown apache:apache /var/www/html/{{cluster_name}}/*.ign"
+      ansible.builtin.shell: "cp {{ installer_dir }}/*.ign /var/www/html/{{ cluster_name }} && chown apache:apache /var/www/html/{{ cluster_name }}/*.ign"
       become: true
 
     - name: Upload ISOs
-      copy:
-        src: "{{iso_tmp_dir}}/ocp-iso-build/isos"
-        dest: /var/www/html/{{cluster_name}}/boot-isos
+      ansible.builtin.copy:
+        src: "{{ iso_tmp_dir }}/ocp-iso-build/isos"
+        dest: /var/www/html/{{ cluster_name }}/boot-isos
         owner: apache
         group: apache
+        mode: "0644"
       become: true
 
-- hosts: openshift_nodes
+- name: Boot nodes
+  hosts: openshift_nodes
   gather_facts: false
   tasks:
     - name: Boot nodes
-      include_tasks: "include/boot_{{pm_type}}.yaml"
-      when: provision == true
+      ansible.builtin.include_tasks: "include/boot_{{ pm_type }}.yaml"
+      when: provision
 
-- hosts: provisioner
+- name: Wait for bootstrap
+  hosts: provisioner
   gather_facts: true
   tasks:
     - name: Wait for bootstrap
-      shell: "{{bin_dir}}/openshift-install --dir={{installer_dir}} wait-for bootstrap-complete"
+      ansible.builtin.shell: "{{ bin_dir }}/openshift-install --dir={{ installer_dir }} wait-for bootstrap-complete"
       register: result
       until: result.rc == 0
       retries: 3
       delay: 5
 
-- hosts: openshift_nodes
+- name: Do post-install node cleanup
+  hosts: openshift_nodes
   gather_facts: false
   tasks:
     - name: Do post-install node cleanup
-      include_tasks: "include/cleanup_{{pm_type}}.yaml"
-      when: provision == true
+      ansible.builtin.include_tasks: "include/cleanup_{{ pm_type }}.yaml"
+      when: provision
 
-- hosts: provisioner
+- name: Clean up provisioner host
+  hosts: provisioner
   gather_facts: true
   tasks:
     - name: Clean up provisioner host
-      include_tasks: "include/cleanup_provisioner.yaml"
+      ansible.builtin.include_tasks: "include/cleanup_provisioner.yaml"
 
-- hosts: bootstraps
+- name: Power off bootstrap node(s)
+  hosts: bootstraps
   gather_facts: false
   tasks:
     - name: Power off bootstrap node(s)
-      vmware_guest_powerstate:
-        hostname: "{{vcenter_host}}"
-        username: "{{vcenter_user}}"
-        password: "{{vcenter_password}}"
-        validate_certs: no
-        name: "{{short_name|default(inventory_hostname)}}"
+      community.vmware.vmware_guest_powerstate:
+        hostname: "{{ vcenter_host }}"
+        username: "{{ vcenter_user }}"
+        password: "{{ vcenter_password }}"
+        validate_certs: false
+        name: "{{ short_name | default(inventory_hostname) }}"
         state: powered-off
-        force: yes
+        force: true
       delegate_to: localhost
-      when: provision == true
+      when: provision

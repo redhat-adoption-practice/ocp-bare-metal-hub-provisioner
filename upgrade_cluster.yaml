@@ -6,7 +6,7 @@
   vars:
     target_node_groups: []
   tasks:
-    - name: include cluster preflight tasks
+    - name: Include cluster preflight tasks
       ansible.builtin.include_tasks: "include/upgrade/cluster_preflight.yaml"
       when: fw_upgrade_only != true
 
@@ -18,10 +18,10 @@
     target_node_groups: []
   tasks:
     - name: Gather node information
-      ansible.builtin.include_tasks: "include/gather_{{pm_type}}_facts.yaml"
+      ansible.builtin.include_tasks: "include/gather_{{ pm_type }}_facts.yaml"
       when: node_group is defined and node_group in target_node_groups
 
-    - name: include node preflight tasks
+    - name: Include node preflight tasks
       ansible.builtin.include_tasks: "include/upgrade/node_preflight.yaml"
       when: node_group is defined and node_group in target_node_groups
 
@@ -31,18 +31,18 @@
   vars:
     target_node_groups: []
   tasks:
-    - name: include control plane upgrade tasks
+    - name: Include control plane upgrade tasks
       ansible.builtin.include_tasks: "include/upgrade/control_plane.yaml"
-      when: fw_upgrade_only != true and control_plane_upgrade_required == true
+      when: fw_upgrade_only != true and control_plane_upgrade_required
 
 - name: Loop over node groups
   hosts: openshift_nodes
   gather_facts: false
-  serial: "{{ node_update_serial|default(32) }}"
+  serial: "{{ node_update_serial | default(32) }}"
   vars:
     target_node_groups: []
   tasks:
-    - name: include node group update tasks
+    - name: Include node group update tasks
       ansible.builtin.include_tasks: "include/upgrade/_node_upgrade_loop.yaml"
       loop_control:
         loop_var: active_node_group
@@ -54,5 +54,5 @@
   vars:
     target_node_groups: []
   tasks:
-    - name: include cluster cleanup tasks
+    - name: Include cluster cleanup tasks
       ansible.builtin.include_tasks: "include/upgrade/cluster_cleanup.yaml"
