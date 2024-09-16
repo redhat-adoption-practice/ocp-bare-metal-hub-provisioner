@@ -4,18 +4,70 @@
   gather_facts: true
   become: true
   tasks:
+    - name: Check if SSH key already exists for '{{ user_name }}'
+      ansible.builtin.stat:
+        path: "/home/{{ user_name }}/.ssh/id_ed25519"
+      register: ssh_key_stat
+
+    - name: Ensure user '{{ user_name }}' exists
+      ansible.builtin.user:
+        name: "{{ user_name }}"
+        password: "{{ user_password }}"
+        shell: /bin/bash
+        createhome: true
+      register: user_creation
+      when: not ssh_key_stat.stat.exists
+
+    - name: Generate SSH key for user '{{ user_name }}'
+      ansible.builtin.user:
+        name: "{{ user_name }}"
+        generate_ssh_key: true
+        ssh_key_type: ed25519
+        ssh_key_file: ".ssh/id_ed25519"
+      register: ssh_key
+      when: not ssh_key_stat.stat.exists and user_creation.changed
+
+    - name: Read SSH public key from file
+      ansible.builtin.slurp:
+        src: "/home/{{ user_name }}/.ssh/id_ed25519.pub"
+      register: ssh_public_key_content
+
+    - name: Decode and print SSH public key
+      ansible.builtin.debug:
+        msg: "The SSH public key for '{{ user_name }}' is: {{ (ssh_public_key_content['content'] | b64decode).split('\n')[0] }}"
+
+    - name: Add '{{ user_name }}' to sudoers
+      ansible.builtin.copy:
+        dest: "/etc/sudoers.d/{{ user_name }}"
+        content: "{{ user_name }} ALL=(root) NOPASSWD:ALL"
+        validate: 'visudo -cf %s'
+        mode: '0440'
+        owner: root
+        group: root
+
+    - name: Register provisioner with Red Hat Subscription Manager
+      community.general.redhat_subscription:
+        state: present
+        username: "{{ rhsm_username }}"
+        password: "{{ rhsm_password }}"
+        auto_attach: true
+
+    - name: Enable a RHSM repository
+      community.general.rhsm_repository:
+        name:
+          - rhel-9-for-{{ ansible_architecture }}-appstream-rpms
+          - rhel-9-for-{{ ansible_architecture }}-baseos-rpms
+
     - name: Install provisioner host packages
       ansible.builtin.package:
-        name: "{{ item }}"
+        name: "{{ provisioner_host_packages }}"
         state: installed
-      with_items: "{{ provisioner_host_packages }}"
 
     - name: Enable and start provisioner host services
       ansible.builtin.service:
-        name: "{{ item }}"
+        name: "{{ provisioner_host_services }}"
         state: started
         enabled: true
-      with_items: "{{ provisioner_host_services }}"
 
     - name: Create local bin directory
       ansible.builtin.file:
@@ -28,6 +80,90 @@
         dest: "{{ bin_dir }}"
         state: directory
         mode: "0755"
+
+    - name: Append '{{ user_name }}' to the libvirt group
+      ansible.builtin.user:
+        name: "{{ user_name }}"
+        groups: libvirt
+        append: true
+
+    - name: Gather installed packages information
+      ansible.builtin.package_facts:
+
+    - name: Ensure firewalld is started
+      ansible.builtin.systemd_service:
+        name: firewalld
+        state: started
+        enabled: true
+      when: "'firewalld' in ansible_facts.packages"
+
+    - name: Add HTTP service to the public zone permanently
+      ansible.posix.firewalld:
+        zone: public
+        service: http
+        permanent: true
+        state: enabled
+      when: "'firewalld' in ansible_facts.packages"
+
+    - name: Reload firewalld to apply changes
+      ansible.builtin.systemd_service:
+        name: firewalld
+        state: reloaded
+      when: "'firewalld' in ansible_facts.packages"
+
+    - name: Ensure libvirtd is started
+      ansible.builtin.systemd_service:
+        name: libvirtd
+        state: started
+        enabled: true
+
+    - name: Define a libvirt storage pool
+      ansible.builtin.command: virsh pool-define-as --name default --type dir --target /var/lib/libvirt/images
+      args:
+        creates: /etc/libvirt/storage/default.xml
+
+    - name: Check if the 'default' virsh pool is active
+      ansible.builtin.shell:
+        cmd: "set -o pipefail && virsh pool-info default | grep -q 'State:          running'"
+      register: pool_status
+      failed_when: pool_status.rc not in [0, 1]
+      changed_when: false
+      become: true
+
+    - name: Start the 'default' virsh pool
+      ansible.builtin.command:
+        cmd: virsh pool-start default
+      when: pool_status.rc == 1
+      become: true
+
+    - name: Set the libvirt storage pool to autostart
+      community.libvirt.virt_pool:
+        name: default
+        autostart: true
+
+    - name: Generate Butane configuration for NTP configuration - Master Nodes
+      ansible.builtin.template:
+        src: /99-master-chrony-conf-override.bu.j2
+        dest: "{{ butane_dir }}/99-master-chrony-conf-override.bu"
+        mode: '0777'
+
+    - name: Process Butane configuration to generate YAML file with NTP configuration - Master Nodes
+      ansible.builtin.command:
+        cmd: butane {{ butane_dir }}/99-master-chrony-conf-override.bu -o {{ build_dir }}/99-master-chrony-conf-override.yaml
+      args:
+        creates: "{{ build_dir }}/99-master-chrony-conf-override.yaml"
+
+    - name: Generate Butane configuration for NTP configuration - Worker Nodes
+      ansible.builtin.template:
+        src: 99-worker-chrony-conf-override.bu.j2
+        dest: "{{ butane_dir }}/99-worker-chrony-conf-override.bu"
+        mode: '0777'
+
+    - name: Process Butane configuration to generate YAML file with NTP configuration - Worker Nodes
+      ansible.builtin.command:
+        cmd: butane {{ butane_dir }}/99-worker-chrony-conf-override.bu -o {{ build_dir }}/99-worker-chrony-conf-override.yaml
+      args:
+        creates: "{{ build_dir }}/99-worker-chrony-conf-override.yaml"
 
     - name: Run prep tasks for firmware update methods
       ansible.builtin.include_tasks: "include/firmware/{{ fw_module }}/provisioner_host_prep.yaml"
