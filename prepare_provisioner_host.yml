@@ -78,6 +78,7 @@
       loop:
         - "{{ bin_dir }}"
         - "{{ config_dir }}"
+        - "{{ build_dir }}"
 
     - name: Append '{{ user_name }}' to the libvirt group
       ansible.builtin.user:
@@ -141,25 +142,25 @@
 
     - name: Generate Butane configuration for NTP configuration - Master Nodes
       ansible.builtin.template:
-        src: /99-master-chrony-conf-override.bu.j2
-        dest: "{{ butane_dir }}/99-master-chrony-conf-override.bu"
+        src: 99-master-chrony-conf-override.bu.j2
+        dest: "{{ config_dir }}/99-master-chrony-conf-override.bu"
         mode: '0777'
 
     - name: Process Butane configuration to generate YAML file with NTP configuration - Master Nodes
       ansible.builtin.command:
-        cmd: butane {{ butane_dir }}/99-master-chrony-conf-override.bu -o {{ build_dir }}/99-master-chrony-conf-override.yaml
+        cmd: butane {{ config_dir }}/99-master-chrony-conf-override.bu -o {{ build_dir }}/99-master-chrony-conf-override.yaml
       args:
         creates: "{{ build_dir }}/99-master-chrony-conf-override.yaml"
 
     - name: Generate Butane configuration for NTP configuration - Worker Nodes
       ansible.builtin.template:
         src: 99-worker-chrony-conf-override.bu.j2
-        dest: "{{ butane_dir }}/99-worker-chrony-conf-override.bu"
+        dest: "{{ config_dir }}/99-worker-chrony-conf-override.bu"
         mode: '0777'
 
     - name: Process Butane configuration to generate YAML file with NTP configuration - Worker Nodes
       ansible.builtin.command:
-        cmd: butane {{ butane_dir }}/99-worker-chrony-conf-override.bu -o {{ build_dir }}/99-worker-chrony-conf-override.yaml
+        cmd: butane {{ config_dir }}/99-worker-chrony-conf-override.bu -o {{ build_dir }}/99-worker-chrony-conf-override.yaml
       args:
         creates: "{{ build_dir }}/99-worker-chrony-conf-override.yaml"
 
