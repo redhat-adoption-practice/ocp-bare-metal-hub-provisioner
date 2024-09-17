@@ -117,11 +117,15 @@
         enabled: true
 
     - name: Define a libvirt storage pool
+      become: true
+      become_user: kni
       ansible.builtin.command: virsh pool-define-as --name default --type dir --target /var/lib/libvirt/images
       args:
         creates: /etc/libvirt/storage/default.xml
 
     - name: Check if the 'default' virsh pool is active
+      become: true
+      become_user: kni
       ansible.builtin.shell:
         cmd: "set -o pipefail && virsh pool-info default | grep -q 'State:          running'"
       register: pool_status
@@ -130,12 +134,16 @@
       become: true
 
     - name: Start the 'default' virsh pool
+      become: true
+      become_user: kni
       ansible.builtin.command:
         cmd: virsh pool-start default
       when: pool_status.rc == 1
       become: true
 
     - name: Set the libvirt storage pool to autostart
+      become: true
+      become_user: kni
       community.libvirt.virt_pool:
         name: default
         autostart: true
