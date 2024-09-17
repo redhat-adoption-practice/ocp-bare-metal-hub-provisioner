@@ -65,21 +65,19 @@
 
     - name: Enable and start provisioner host services
       ansible.builtin.service:
-        name: "{{ provisioner_host_services }}"
+        name: "{{ item }}"
         state: started
         enabled: true
+      loop: "{{ provisioner_host_services }}"
 
-    - name: Create local bin directory
+    - name: Create local directory structure
       ansible.builtin.file:
-        dest: "{{ bin_dir }}"
+        dest: "{{ item }}"
         state: directory
         mode: "0755"
-
-    - name: Create local build directory
-      ansible.builtin.file:
-        dest: "{{ bin_dir }}"
-        state: directory
-        mode: "0755"
+      loop:
+        - "{{ bin_dir }}"
+        - "{{ config_dir }}"
 
     - name: Append '{{ user_name }}' to the libvirt group
       ansible.builtin.user:
