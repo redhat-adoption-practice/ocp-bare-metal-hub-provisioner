@@ -11,7 +11,7 @@
   tasks:
     - name: Download the mirror registry package
       ansible.builtin.get_url:
-        url: "{{ source_urls[mirror_registry] }}"
+        url: "{{ source_urls['mirror_registry'] }}"
         dest: "{{ mirror_registry_tar }}"
         mode: '0644'
 
