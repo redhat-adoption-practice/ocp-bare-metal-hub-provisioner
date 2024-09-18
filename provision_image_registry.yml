@@ -7,9 +7,6 @@
     mirror_registry_tar: "/tmp/mirror-registry.tar.gz"
     quay_hostname: "registry.example.com"
     quay_root: "/opt/mirror-registry"
-    podman_password: "my_password"
-    podman_tls_verify: false
-    port: 8443
 
   tasks:
     - name: Download the mirror registry package
@@ -31,20 +28,20 @@
         cmd: >
           ./mirror-registry install
           --quayHostname {{ quay_hostname }}
-          --quayRoot {{ quay_root }}
+          --quayRoot {{ quay_root | default('/opt/mirror-registry')}}
           --initUser "{{ quay_user | default('init') }}"
-          --initPassword "{{  }}"
+          --initPassword "{{ quay_password | default('password')}}"
+          --additionalArgs "-v"
           -v
         chdir: "/tmp/mirror-registry"
 
-
     - name: Log in to the mirror registry using Podman
       containers.podman.podman_login:
-        username: user
-        password: 'p4ssw0rd'
+        username: "{{ quay_user | default('init') }}"
+        password: "{{ quay_password | default('password')}}"
         registry: "{{ quay_hostname }}:{{ quay_port }}"
         tlsverify: false
-      when: podman_password is defined and quay_hostname is defined
+      when: quay_hostname is defined
 
     - name: Debug - Quay hostname and login info
       ansible.builtin.debug:
