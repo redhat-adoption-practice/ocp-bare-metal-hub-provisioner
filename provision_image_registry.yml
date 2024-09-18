@@ -1,0 +1,58 @@
+---
+- name: Install Mirror Registry for Red Hat OpenShift
+  hosts: provisioner
+  become: true
+  vars:
+    # Define your variables for the mirror registry
+    mirror_registry_tar: "/tmp/mirror-registry.tar.gz"
+    quay_hostname: "registry.example.com"
+    quay_root: "/opt/mirror-registry"
+    podman_password: "my_password"
+    podman_tls_verify: false
+    port: 8443
+
+  tasks:
+    - name: Download the mirror registry package
+      ansible.builtin.get_url:
+        url: "{{ source_urls[mirror_registry] }}"
+        dest: "{{ mirror_registry_tar }}"
+        mode: '0644'
+
+    - name: Extract the mirror registry package
+      ansible.builtin.unarchive:
+        src: "{{ mirror_registry_tar }}"
+        dest: "/tmp"
+        remote_src: no
+        creates: "/tmp/mirror-registry/mirror-registry"
+        mode: '0755'
+
+    - name: Run the mirror-registry install command
+      ansible.builtin.command:
+        cmd: >
+          ./mirror-registry install
+          --quayHostname {{ quay_hostname }}
+          --quayRoot {{ quay_root }}
+          --initUser "{{ quay_user | default('init') }}"
+          --initPassword "{{  }}"
+          -v
+        chdir: "/tmp/mirror-registry"
+
+
+    - name: Log in to the mirror registry using Podman
+      containers.podman.podman_login:
+        username: user
+        password: 'p4ssw0rd'
+        registry: "{{ quay_hostname }}:{{ quay_port }}"
+        tlsverify: false
+      when: podman_password is defined and quay_hostname is defined
+
+    - name: Debug - Quay hostname and login info
+      ansible.builtin.debug:
+        msg: "Login to the registry at https://{{ quay_hostname }}:{{ port }} with the username 'init' and the provided password."
+
+    - name: Provide next steps for the user
+      ansible.builtin.debug:
+        msg: |
+          To continue, you can now mirror OpenShift Container Platform images.
+          Use 'podman login' to log in to the registry if needed.
+          More info: See the 'Mirroring OpenShift Container Platform images' or 'Mirroring Operator catalogs' documentation.
