@@ -20,7 +20,7 @@
         src: "{{ mirror_registry_tar }}"
         dest: "/tmp"
         remote_src: no
-        creates: "/tmp/mirror-registry/mirror-registry"
+        creates: "/tmp/mirror-registry"
         mode: '0755'
 
     - name: Run the mirror-registry install command
@@ -33,7 +33,7 @@
           --initPassword "{{ quay_password | default('password')}}"
           --additionalArgs "-v"
           -v
-        chdir: "/tmp/mirror-registry"
+        chdir: "/tmp"
 
     - name: Log in to the mirror registry using Podman
       containers.podman.podman_login:
