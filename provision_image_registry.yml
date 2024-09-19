@@ -59,7 +59,7 @@
     - name: Debug matched running containers
       ansible.builtin.debug:
         var: has_infra_container
-      verbosity: 3
+        verbosity: 3
 
     - name: Validate if all required containers are running
       ansible.builtin.set_fact:
