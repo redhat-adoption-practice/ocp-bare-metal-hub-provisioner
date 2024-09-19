@@ -27,6 +27,7 @@
     - name: Debug list of running containers
       ansible.builtin.debug:
         msg: "Running containers: {{ running_containers.stdout_lines }}"
+        verbosity: 3
 
     - name: Filter the running containers to match the required ones
       ansible.builtin.set_fact:
@@ -34,6 +35,7 @@
       loop: "{{ required_containers }}"
       loop_control:
         label: "{{ item }}"
+
     - name: Initialize the list for matched running containers
       ansible.builtin.set_fact:
         matched_running_containers: []
@@ -48,6 +50,7 @@
     - name: Debug list of matched running containers
       ansible.builtin.debug:
         msg: "Matched Running containers: {{ matched_running_containers }}"
+        verbosity: 3
 
     - name: Filter for infra container in matched running containers
       ansible.builtin.set_fact:
@@ -56,6 +59,7 @@
     - name: Debug matched running containers
       ansible.builtin.debug:
         var: has_infra_container
+      verbosity: 3
 
     - name: Validate if all required containers are running
       ansible.builtin.set_fact:
@@ -68,6 +72,7 @@
     - name: Debug matched running containers
       ansible.builtin.debug:
         var: all_containers_running
+        verbosity: 3
 
     - name: Skip mirror registry installation if containers are running
       ansible.builtin.debug:
@@ -124,7 +129,7 @@
               --additionalArgs "-vv"
               -v
             chdir: "{{ mirror_registry_bin_dir }}"
-      when: all_containers_running
+      when: not all_containers_running
 
       rescue:
         - name: Print when errors
