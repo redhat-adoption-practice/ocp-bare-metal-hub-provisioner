@@ -1,14 +1,33 @@
 ---
 - name: Install Mirror Registry for Red Hat OpenShift
   hosts: provisioner
-  become: true
+  # become: true
   vars:
     # Define your variables for the mirror registry
-    mirror_registry_tar: "/tmp/mirror-registry.tar.gz"
+    mirror_registry_bin_dir: "/tmp/mirror-registry/"
+    mirror_registry_tar: "{{ mirror_registry_bin_dir }}/mirror-registry.tar.gz"
     quay_hostname: "registry.example.com"
     quay_root: "/opt/mirror-registry"
 
   tasks:
+    - name: Create directory {{ quay_root }}
+      become: true
+      ansible.builtin.file:
+        dest: "{{ quay_root }}"
+        state: directory
+        mode: "0755"
+        owner: lab-user
+        group: users
+
+    - name: Create directory {{ mirror_registry_bin_dir }}
+      become: true
+      ansible.builtin.file:
+        dest: "{{ mirror_registry_bin_dir }}"
+        state: directory
+        mode: "0755"
+        owner: lab-user
+        group: users
+
     - name: Download the mirror registry package
       ansible.builtin.get_url:
         url: "{{ source_urls['mirror_registry'] }}"
@@ -18,9 +37,9 @@
     - name: Extract the mirror registry package
       ansible.builtin.unarchive:
         src: "{{ mirror_registry_tar }}"
-        dest: "/tmp"
+        dest: "{{ mirror_registry_bin_dir }}"
         remote_src: no
-        creates: "/tmp/mirror-registry"
+        creates: "{{ mirror_registry_bin_dir }}/mirror-registry"
         mode: '0755'
 
     - name: Run the mirror-registry install command
@@ -33,7 +52,7 @@
           --initPassword "{{ quay_password | default('password')}}"
           --additionalArgs "-v"
           -v
-        chdir: "/tmp"
+        chdir: "{{ mirror_registry_bin_dir }}"
 
     - name: Log in to the mirror registry using Podman
       containers.podman.podman_login:
