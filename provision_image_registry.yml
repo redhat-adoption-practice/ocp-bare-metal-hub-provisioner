@@ -79,7 +79,7 @@
               ./mirror-registry install
               --quayRoot {{ quay_root | default('~/quay-install')}}
               --initUser "{{ quay_user | default('init') }}"
-              --initPassword "{{ quay_password | default('')}}"
+              --initPassword "{{ quay_password | default('password')}}"
               --targetHostname "{{ quay_target_hostname | default(lookup('env', 'HOST')) }}"
               --targetUsername "{{ quay_target_username | default(lookup('env', 'USER')) }}"
               --ssh-key "{{ quay_ssh_key_path | default(' ~/.ssh/quay_installer') }}"
@@ -105,7 +105,7 @@
       containers.podman.podman_login:
         username: "{{ quay_user | default('init') }}"
         password: "{{ quay_password | default('password')}}"
-        registry: "{{ quay_hostname }}:{{ quay_port }}"
+        registry: "{{ quay_hostname }}:8443"
         tlsverify: false
       when: quay_hostname is defined
 
