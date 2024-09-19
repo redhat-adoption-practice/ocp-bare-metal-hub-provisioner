@@ -88,6 +88,7 @@
               --additionalArgs "-vv"
               -v
             chdir: "{{ mirror_registry_bin_dir }}"
+      when: all_containers_running
 
       rescue:
         - name: Print when errors
