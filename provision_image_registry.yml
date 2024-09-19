@@ -120,13 +120,23 @@
               ./mirror-registry install
               --quayRoot {{ quay_root | default('~/quay-install')}}
               --initUser "{{ quay_user | default('init') }}"
-              --initPassword "{{ quay_password | default('password')}}"
+              {% if quay_password is defined and quay_password != '' %}
+              --initPassword "{{ quay_password }}"
+              {% endif %}
               --targetHostname "{{ quay_target_hostname | default(lookup('env', 'HOST')) }}"
               --targetUsername "{{ quay_target_username | default(lookup('env', 'USER')) }}"
-              --ssh-key "{{ quay_ssh_key_path | default(' ~/.ssh/quay_installer') }}"
-              --sslCert "{{ quay_ssl_cert | default('') }}"
-              --sslKey ""{{ quay_ssl_key | default('') }}""
-              --additionalArgs "-vv"
+              {% if quay_ssh_key_path is defined and quay_ssh_key_path != '' %}
+              --ssh-key "{{ quay_ssh_key_path }}"
+              {% endif %}
+              {% if quay_ssl_cert is defined and quay_ssl_cert != '' %}
+              --sslCert "{{ quay_ssl_cert }}"
+              {% endif %}
+              {% if quay_ssl_key is defined and quay_ssl_key != '' %}
+              --sslKey "{{ quay_ssl_key }}"
+              {% endif %}
+              {% if quay_installer_additional_args is defined and quay_installer_additional_args != '' %}
+              --additionalArgs "{{ quay_installer_additional_args }}"
+              {% endif %}
               -v
             chdir: "{{ mirror_registry_bin_dir }}"
       when: not all_containers_running
