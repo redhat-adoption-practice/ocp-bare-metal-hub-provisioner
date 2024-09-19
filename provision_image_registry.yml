@@ -6,8 +6,11 @@
     # Define your variables for the mirror registry
     mirror_registry_bin_dir: "/tmp/mirror-registry"
     mirror_registry_tar: "{{ mirror_registry_bin_dir }}/mirror-registry.tar.gz"
-    quay_hostname: "registry.example.com"
+    quay_target_hostname: " | "
+    quay_target_port: 8443
     quay_root: "/opt/mirror-registry"
+    quay_user: quayadmin
+    quay_password: "password"
     quay_installer_owner: lab-user
     quay_installer_group: users
     required_containers:
@@ -123,7 +126,10 @@
               {% if quay_password is defined and quay_password != '' %}
               --initPassword "{{ quay_password }}"
               {% endif %}
-              --targetHostname "{{ quay_target_hostname | default(lookup('env', 'HOST')) }}"
+              {% if quay_target_hostname is defined and quay_target_hostname != '' and quay_target_port is defined and quay_target_port != '' %}
+              --quayHostname "{{ quay_target_hostname }}:{{ quay_target_port }}"
+              {% endif %}
+              --targetHostname "{{ quay_target_hostname | default(ansible_hostname) }}"
               --targetUsername "{{ quay_target_username | default(lookup('env', 'USER')) }}"
               {% if quay_ssh_key_path is defined and quay_ssh_key_path != '' %}
               --ssh-key "{{ quay_ssh_key_path }}"
@@ -139,7 +145,7 @@
               {% endif %}
               -v
             chdir: "{{ mirror_registry_bin_dir }}"
-      when: not all_containers_running
+      when: not all_containers_running and quay_password is defined
 
       rescue:
         - name: Print when errors
@@ -151,22 +157,14 @@
           ansible.builtin.debug:
             msg: "This always executes, :-)"
 
-
     - name: Log in to the mirror registry using Podman
       containers.podman.podman_login:
         username: "{{ quay_user | default('init') }}"
-        password: "{{ quay_password | default('password')}}"
-        registry: "{{ quay_hostname }}:8443"
+        password: "{{ quay_password }}"
+        registry: "{{ quay_target_hostname  }}:{{ quay_target_port }}"
         tlsverify: false
-      when: quay_hostname is defined
+      when: quay_password is defined
 
     - name: Debug - Quay hostname and login info
       ansible.builtin.debug:
-        msg: "Login to the registry at https://{{ quay_hostname }}:{{ port }} with the username 'init' and the provided password."
-
-    - name: Provide next steps for the user
-      ansible.builtin.debug:
-        msg: |
-          To continue, you can now mirror OpenShift Container Platform images.
-          Use 'podman login' to log in to the registry if needed.
-          More info: See the 'Mirroring OpenShift Container Platform images' or 'Mirroring Operator catalogs' documentation.
+        msg: "Login to the registry at https://{{ quay_target_hostname }}:{{ port }} with the username '{{ quay_user }}' and the provided password."
