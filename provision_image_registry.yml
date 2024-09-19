@@ -4,55 +4,101 @@
   # become: true
   vars:
     # Define your variables for the mirror registry
-    mirror_registry_bin_dir: "/tmp/mirror-registry/"
+    mirror_registry_bin_dir: "/tmp/mirror-registry"
     mirror_registry_tar: "{{ mirror_registry_bin_dir }}/mirror-registry.tar.gz"
     quay_hostname: "registry.example.com"
     quay_root: "/opt/mirror-registry"
+    quay_installer_owner: lab-user
+    quay_installer_group: users
+    required_containers:
+      - quay-app
+      - quay-redis
+      - infra
 
   tasks:
-    - name: Create directory {{ quay_root }}
-      become: true
-      ansible.builtin.file:
-        dest: "{{ quay_root }}"
-        state: directory
-        mode: "0755"
-        owner: lab-user
-        group: users
+    - name: Check if the required containers are running
+      ansible.builtin.shell: |
+        podman ps --format '{{ "{{ .Names }}" }}' | grep -w -e {{ required_containers | join(" -e ") }}
+      register: running_containers
+      changed_when: false
+      failed_when: running_containers.rc != 0
+      ignore_errors: true
 
-    - name: Create directory {{ mirror_registry_bin_dir }}
-      become: true
-      ansible.builtin.file:
-        dest: "{{ mirror_registry_bin_dir }}"
-        state: directory
-        mode: "0755"
-        owner: lab-user
-        group: users
+    - name: Debug list of running containers
+      ansible.builtin.debug:
+        msg: "Running containers: {{ running_containers.stdout_lines }}"
 
-    - name: Download the mirror registry package
-      ansible.builtin.get_url:
-        url: "{{ source_urls['mirror_registry'] }}"
-        dest: "{{ mirror_registry_tar }}"
-        mode: '0644'
+    - name: Validate if all required containers are running
+      ansible.builtin.set_fact:
+        all_containers_running: "{{ required_containers | difference(running_containers.stdout_lines) | length == 0 }}"
 
-    - name: Extract the mirror registry package
-      ansible.builtin.unarchive:
-        src: "{{ mirror_registry_tar }}"
-        dest: "{{ mirror_registry_bin_dir }}"
-        remote_src: no
-        creates: "{{ mirror_registry_bin_dir }}/mirror-registry"
-        mode: '0755'
 
-    - name: Run the mirror-registry install command
-      ansible.builtin.command:
-        cmd: >
-          ./mirror-registry install
-          --quayHostname {{ quay_hostname }}
-          --quayRoot {{ quay_root | default('/opt/mirror-registry')}}
-          --initUser "{{ quay_user | default('init') }}"
-          --initPassword "{{ quay_password | default('password')}}"
-          --additionalArgs "-v"
-          -v
-        chdir: "{{ mirror_registry_bin_dir }}"
+    - name: Skip mirror registry installation if containers are running
+      ansible.builtin.debug:
+        msg: "All required containers are running, skipping installation."
+      when: all_containers_running
+      changed_when: false
+
+    - name: Block - Install mirror-registry
+      block:
+        - name: Create directory {{ quay_root }}
+          become: true
+          ansible.builtin.file:
+            dest: "{{ quay_root }}"
+            state: directory
+            mode: "0755"
+            owner: "{{ quay_installer_owner }}"
+            group: "{{ quay_installer_group }}"
+
+        - name: Create directory {{ mirror_registry_bin_dir }}
+          become: true
+          ansible.builtin.file:
+            dest: "{{ mirror_registry_bin_dir }}"
+            state: directory
+            mode: "0755"
+            owner: "{{ quay_installer_owner }}"
+            group: "{{ quay_installer_group }}"
+
+        - name: Download the mirror registry package
+          ansible.builtin.get_url:
+            url: "{{ source_urls['mirror_registry'] }}"
+            dest: "{{ mirror_registry_tar }}"
+            mode: '0644'
+
+        - name: Extract the mirror registry package
+          ansible.builtin.unarchive:
+            src: "{{ mirror_registry_tar }}"
+            dest: "{{ mirror_registry_bin_dir }}"
+            remote_src: no
+            creates: "{{ mirror_registry_bin_dir }}/mirror-registry"
+            mode: '0755'
+
+        - name: Run the mirror-registry install command
+          ansible.builtin.command:
+            cmd: >
+              ./mirror-registry install
+              --quayRoot {{ quay_root | default('~/quay-install')}}
+              --initUser "{{ quay_user | default('init') }}"
+              --initPassword "{{ quay_password | default('')}}"
+              --targetHostname "{{ quay_target_hostname | default(lookup('env', 'HOST')) }}"
+              --targetUsername "{{ quay_target_username | default(lookup('env', 'USER')) }}"
+              --ssh-key "{{ quay_ssh_key_path | default(' ~/.ssh/quay_installer') }}"
+              --sslCert "{{ quay_ssl_cert | default('') }}"
+              --sslKey ""{{ quay_ssl_key | default('') }}""
+              --additionalArgs "-vv"
+              -v
+            chdir: "{{ mirror_registry_bin_dir }}"
+
+      rescue:
+        - name: Print when errors
+          ansible.builtin.debug:
+            msg: 'I caught an error, can do stuff here to fix it, :-)'
+
+      always:
+        - name: Always do this
+          ansible.builtin.debug:
+            msg: "This always executes, :-)"
+
 
     - name: Log in to the mirror registry using Podman
       containers.podman.podman_login:
