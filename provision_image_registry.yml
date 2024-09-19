@@ -13,12 +13,12 @@
     required_containers:
       - quay-app
       - quay-redis
-      - infra
+      - .*-infra
 
   tasks:
-    - name: Check if the required containers are running
-      ansible.builtin.shell: |
-        podman ps --format '{{ "{{ .Names }}" }}' | grep -w -e {{ required_containers | join(" -e ") }}
+    - name: Gather all running containers
+      ansible.builtin.command:
+        cmd: "podman ps --format '{{ '{{.Names}}' }}'"
       register: running_containers
       changed_when: false
       failed_when: running_containers.rc != 0
@@ -28,14 +28,50 @@
       ansible.builtin.debug:
         msg: "Running containers: {{ running_containers.stdout_lines }}"
 
+    - name: Filter the running containers to match the required ones
+      ansible.builtin.set_fact:
+        matched_running_containers: "{{ running_containers.stdout_lines | select('search', item) | list }}"
+      loop: "{{ required_containers }}"
+      loop_control:
+        label: "{{ item }}"
+    - name: Initialize the list for matched running containers
+      ansible.builtin.set_fact:
+        matched_running_containers: []
+
+    - name: Filter the running containers to match the required ones
+      ansible.builtin.set_fact:
+        matched_running_containers: "{{ matched_running_containers + running_containers.stdout_lines | select('search', item) | list }}"
+      loop: "{{ required_containers }}"
+      loop_control:
+        label: "{{ item }}"
+
+    - name: Debug list of matched running containers
+      ansible.builtin.debug:
+        msg: "Matched Running containers: {{ matched_running_containers }}"
+
+    - name: Filter for infra container in matched running containers
+      ansible.builtin.set_fact:
+        has_infra_container: "{{ matched_running_containers | select('search', '.*-infra') | list | length > 0 }}"
+
+    - name: Debug matched running containers
+      ansible.builtin.debug:
+        var: has_infra_container
+
     - name: Validate if all required containers are running
       ansible.builtin.set_fact:
-        all_containers_running: "{{ required_containers | difference(running_containers.stdout_lines) | length == 0 }}"
+        all_containers_running: >-
+          {{
+            required_containers[:-1] | difference(matched_running_containers) | length == 0
+            and (matched_running_containers | select('search', '.*-infra') | list | length > 0)
+          }}
 
+    - name: Debug matched running containers
+      ansible.builtin.debug:
+        var: all_containers_running
 
     - name: Skip mirror registry installation if containers are running
       ansible.builtin.debug:
-        msg: "All required containers are running, skipping installation."
+        msg: "All required containers are running, skipping installation. {{ all_containers_running }}"
       when: all_containers_running
       changed_when: false
 
