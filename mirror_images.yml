@@ -13,7 +13,7 @@
   tasks:
 
     - name: Check if oc binary is already installed
-      ansible.builtin.command: "{{ oc_install_dir }}oc version --client"
+      ansible.builtin.command: "{{ oc_install_dir }}/oc version --client"
       register: oc_installed
       ignore_errors: true
 
@@ -39,7 +39,7 @@
       when: oc_installed.failed
 
     - name: Verify oc installation
-      ansible.builtin.command: "{{ oc_install_dir }} oc version --client"
+      ansible.builtin.command: "{{ oc_install_dir }}/oc version --client"
       register: oc_installed_version
       changed_when: false
 
