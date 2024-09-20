@@ -6,7 +6,7 @@
     # Define your variables for the mirror registry
     mirror_registry_bin_dir: "/tmp/mirror-registry"
     mirror_registry_tar: "{{ mirror_registry_bin_dir }}/mirror-registry.tar.gz"
-    quay_target_hostname: " | "
+    quay_target_hostname: "{{ ansible_hostname }}"
     quay_target_port: 8443
     quay_root: "/opt/mirror-registry"
     quay_user: quayadmin
@@ -161,10 +161,12 @@
       containers.podman.podman_login:
         username: "{{ quay_user | default('init') }}"
         password: "{{ quay_password }}"
-        registry: "{{ quay_target_hostname  }}:{{ quay_target_port }}"
+        registry: "{{ quay_target_hostname }}:{{ quay_target_port }}"
         tlsverify: false
       when: quay_password is defined
+      register: quay_login
 
     - name: Debug - Quay hostname and login info
       ansible.builtin.debug:
-        msg: "Login to the registry at https://{{ quay_target_hostname }}:{{ port }} with the username '{{ quay_user }}' and the provided password."
+        msg: "Login to the registry at https://{{ quay_target_hostname }}:{{ quay_target_port }} with the username '{{ quay_user }}' and the provided password."
+      when: quay_login.changed
