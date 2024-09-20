@@ -6,7 +6,7 @@
     # Define your variables for the mirror registry
     mirror_registry_bin_dir: "/tmp/mirror-registry"
     mirror_registry_tar: "{{ mirror_registry_bin_dir }}/mirror-registry.tar.gz"
-    quay_target_hostname: "{{ ansible_hostname }}"
+    quay_target_hostname: "{{ ansible_fqdn }}"
     quay_target_port: 8443
     quay_root: "/opt/mirror-registry"
     quay_user: quayadmin
@@ -129,7 +129,7 @@
               {% if quay_target_hostname is defined and quay_target_hostname != '' and quay_target_port is defined and quay_target_port != '' %}
               --quayHostname "{{ quay_target_hostname }}:{{ quay_target_port }}"
               {% endif %}
-              --targetHostname "{{ quay_target_hostname | default(ansible_hostname) }}"
+              --targetHostname "{{ quay_target_hostname | default(ansible_fqdn) }}"
               --targetUsername "{{ quay_target_username | default(lookup('env', 'USER')) }}"
               {% if quay_ssh_key_path is defined and quay_ssh_key_path != '' %}
               --ssh-key "{{ quay_ssh_key_path }}"
@@ -169,4 +169,4 @@
     - name: Debug - Quay hostname and login info
       ansible.builtin.debug:
         msg: "Login to the registry at https://{{ quay_target_hostname }}:{{ quay_target_port }} with the username '{{ quay_user }}' and the provided password."
-      when: quay_login.changed
+      when: quay_login.failed is not defined or quay_login.failed == false
