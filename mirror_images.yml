@@ -24,15 +24,16 @@
       when: oc_installed.failed
 
     - name: Extract OpenShift client (oc) binary if not already installed
+      become: true
       ansible.builtin.unarchive:
         src: "/tmp/openshift-client-linux.tar.gz"
         dest: "{{ oc_install_dir }}"
         remote_src: false
-        extra_opts: ["--strip-components=1"]
         creates: "{{ oc_install_dir }}/oc"
       when: oc_installed.failed
 
     - name: Set executable permission for oc binary
+      become: true
       ansible.builtin.file:
         path: "{{ oc_install_dir }}/oc"
         mode: '0755'
