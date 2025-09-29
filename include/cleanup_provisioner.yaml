@@ -1,8 +1,107 @@
-- name: Clean up build root directories
+---
+- name: Clean up old install directory when reprovisioning
   ansible.builtin.file:
-    dest: "{{ item }}"
+    path: "{{ installer_dir }}"
     state: absent
-  delegate_to: localhost
-  with_items:
-    - "{{ iso_tmp_dir }}/ocp-iso-build"
-    - "{{ iso_tmp_dir }}/ocp-iso-build/isos"
+
+- name: Clean up old files directory when reprovisioning
+  ansible.builtin.file:
+    path: "{{ files_dir }}"
+    state: absent
+    
+- name: Clean up old files directory when reprovisioning
+  ansible.builtin.file:
+    path: "{{ clusterconfigs_dir }}"
+    state: absent
+
+- name: Get list of all bootstrap VMs
+  ansible.builtin.shell:
+    cmd: |
+        set -e -o pipefail
+        sudo virsh list --all | tail -n +3 | grep bootstrap | awk '{print $2}'
+  ignore_errors: true
+  register: bootstrap_vms
+
+- name: Get list of all bootstrap pools
+  ansible.builtin.shell:
+    cmd: |
+      set -e -o pipefail
+      sudo virsh pool-list --all | tail -n +3 | grep bootstrap | awk '{print $1}'
+  ignore_errors: true
+  register: bootstrap_pools
+
+- name: Ensure all bootstrap VMs are destroyed and undefined
+  block:
+  - name: Destroy the VM
+    community.libvirt.virt:
+      name: "{{ item }}"
+      command: destroy
+    loop: "{{ bootstrap_vms.stdout_lines }}"
+    when: bootstrap_vms.stdout != ""
+
+  - name: Undefine the VM
+    community.libvirt.virt:
+      name: "{{ item }}"
+      command: undefine
+    loop: "{{ bootstrap_vms.stdout_lines }}"
+    when: bootstrap_vms.stdout != ""
+  when: bootstrap_vms.stdout != ""
+  ignore_errors: true
+
+- name: Delete volumes for each VM pool
+  block:
+  - name: Delete the main volume
+    ansible.builtin.command:
+      cmd: sudo virsh vol-delete "{{ item }}" --pool "{{ item }}"
+    loop: "{{ bootstrap_vms.stdout_lines }}"
+    when: bootstrap_vms.stdout != ""
+
+  - name: Delete the ignition volume (if exists)
+    ansible.builtin.command:
+      cmd: sudo virsh vol-delete "{{ item }}.ign" --pool "{{ item }}"
+    loop: "{{ bootstrap_vms.stdout_lines }}"
+    when: bootstrap_vms.stdout != ""
+  when: bootstrap_vms.stdout != ""
+  ignore_errors: true
+
+- name: Destroy and undefine the pools associated with the bootstrap VMs
+  block:
+  - name: Destroy the pool
+    community.libvirt.virt_pool:
+      name: "{{ item }}"
+      command: destroy
+    loop: "{{ bootstrap_vms.stdout_lines }}"
+    when: bootstrap_vms.stdout != ""
+
+  - name: Undefine the pool
+    community.libvirt.virt_pool:
+      name: "{{ item }}"
+      command: undefine
+    loop: "{{ bootstrap_vms.stdout_lines }}"
+    when: bootstrap_vms.stdout != ""
+  when: bootstrap_vms.stdout != ""
+  ignore_errors: true
+
+
+- name: Ensure bootstrap pools are destroyed and undefined (even if no bootstrap VMs exist)
+  block:
+  - name: Destroy the pool
+    community.libvirt.virt_pool:
+      name: "{{ item }}"
+      command: destroy
+      state: absent
+    loop: "{{ bootstrap_pools.stdout_lines }}"
+    when: bootstrap_pools.stdout != ""
+
+  - name: Undefine the pool
+    community.libvirt.virt_pool:
+      name: "{{ item }}"
+      state: absent
+    loop: "{{ bootstrap_pools.stdout_lines }}"
+    when: bootstrap_pools.stdout != ""
+  when: bootstrap_pools.stdout != ""
+
+- name: Ensure SSH keys from bootstrap are not on the provisioner
+  ansible.builtin.known_hosts:
+    name: "{{ bootstrap.static_ip }}"
+    state: absent

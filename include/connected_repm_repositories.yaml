@@ -1,0 +1,13 @@
+---
+- name: Register provisioner with Red Hat Subscription Manager
+  community.general.redhat_subscription:
+    state: present
+    username: "{{ rhsm_username }}"
+    password: "{{ rhsm_password }}"
+    auto_attach: true
+
+- name: Enable connected RPM repositories
+  community.general.rhsm_repository:
+    name:
+      - rhel-9-for-{{ ansible_architecture }}-appstream-rpms
+      - rhel-9-for-{{ ansible_architecture }}-baseos-rpms

@@ -1,0 +1,56 @@
+---
+- name: Collect NIC data from DRAC
+  when: >
+    drac_discovery_boot_device is not defined or
+    drac_discovery_macaddress is not defined
+  block:
+    - name: Get System Inventory
+      dellemc.openmanage.idrac_system_info:
+        idrac_ip: "{{ drac_discovery_ipaddress }}"
+        idrac_user: "{{ drac_discovery_username }}"
+        idrac_password: "{{ drac_discovery_password }}"
+        validate_certs: "{{ drac_discovery_validate_certs }}"
+      register: r_system_info
+
+    - name: Show collected information for NICs
+      ansible.builtin.debug:
+        msg:
+          - "The following FQDD and associated MAC Address(es) were found."
+          - "{{ r_system_info.system_info.NIC | map(attribute='FQDD') | zip(r_system_info.system_info.NIC | map(attribute='CurrentMACAddress')) }}"
+
+- name: Inform user to specify boot device if needed
+  ansible.builtin.assert:
+    that:
+      - drac_discovery_boot_device is defined
+    fail_msg:
+      - "You must specify which of the discovered devices is used as the primary boot device."
+      - "Specify the correct FQDD boot device as the variable 'boot_device' for this host from the list above."
+    success_msg:
+      - "Specified boot device of {{ drac_discovery_boot_device }} will be used to obtain a MAC Address."
+
+- name: Determine MAC Address
+  when:
+    - drac_discovery_macaddress is not defined
+  block:
+    - name: Obtain MAC Address for specified FQDD boot device
+      ansible.builtin.set_fact:
+        drac_discovery_macaddress: >
+          "{{
+              (
+              r_system_info.system_info.NIC |
+              selectattr('FQDD', 'equalto', drac_discovery_boot_device) |
+              items2dict(key_name='FQDD', value_name='CurrentMACAddress')
+              )[drac_discovery_boot_device]
+          }}"
+
+- name: "Display discovered MAC Address for {{ drac_discovery_boot_device }}"
+  ansible.builtin.debug:
+    msg: "Found MAC Address {{ drac_discovery_macaddress.strip() }} for specified boot device {{ drac_discovery_boot_device }}"
+
+- name: Template out config file with details
+  ansible.builtin.template:
+    src: baremetal-hosts.yaml.j2
+    dest: "{{ drac_discovery_config_output }}/{{ inventory_hostname }}.yaml"
+    mode: u+r,g-rwx,o-rwx
+
+...

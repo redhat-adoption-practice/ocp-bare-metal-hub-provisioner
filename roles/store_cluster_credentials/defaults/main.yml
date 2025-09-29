@@ -1,0 +1,7 @@
+---
+install_dir:
+vault_url:
+vault_write_token:
+vault_mount_point:
+vault_secret_path:
+vault_validate_certs:

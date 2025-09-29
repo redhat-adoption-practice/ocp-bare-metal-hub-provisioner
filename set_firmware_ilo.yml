@@ -1,0 +1,16 @@
+---
+- name: Set Firmware for HP hosts
+  hosts: provisioner
+  gather_facts: true
+  vars:
+    reprovision: true
+    install_acm: true
+    files_dir: "{{ installer_dir }}/files"
+    clusterconfigs_dir: "{{ installer_dir }}/clusterconfigs"
+    manifests_dir: "{{ playbook_dir }}/manifests"
+  tasks:
+    - name: Include firmware for HP hosts
+      ansible.builtin.include_tasks: "include/firmware_ilo.yaml"
+      loop: "{{ groups['openshift_nodes'] }}"
+      loop_control:
+        loop_var: host

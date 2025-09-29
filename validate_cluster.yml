@@ -1,0 +1,11 @@
+---
+- name: Validate New Cluster
+  hosts: provisioner
+  gather_facts: true
+  vars:
+    files_dir: "{{ installer_dir }}/files"
+    clusterconfigs_dir: "{{ installer_dir }}/clusterconfigs"
+    manifests_dir: "{{ playbook_dir }}/manifests"
+  tasks:
+    - name: Include validate cluster
+      ansible.builtin.include_tasks: "include/validate_cluster.yaml"
