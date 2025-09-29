@@ -1,0 +1,6 @@
+use_hashi_vault:
+vault_url:
+secrets:
+  - name:
+    mount:
+    path:

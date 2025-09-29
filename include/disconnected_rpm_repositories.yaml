@@ -1,0 +1,17 @@
+---
+- name: Add repositories
+  ansible.builtin.yum_repository:
+    name: "{{ item.name }}"
+    description: "{{ item.description }}"
+    baseurl: "{{ item.baseurl }}"
+    file: local_repos
+    enabled: "{{ item.enabled | default(1) }}"
+    gpgcheck: "{{ item.gpgcheck | default(1) }}"
+    gpgkey: "{{ item.gpgkey | default('') }}"
+    sslverify: "{{ item.sslverify | default(true) }}"
+  loop: "{{ disconnected_rpm_repositories }}"
+
+- name: Run yum makecache
+  become: true
+  ansible.builtin.command:
+    cmd: yum makecache

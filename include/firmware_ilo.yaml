@@ -1,0 +1,52 @@
+---
+- name: Set Manager Network Protocols
+  community.general.redfish_config:
+    baseuri: "{{ hostvars[host].bmc_ip_addr }}" 
+    username: "{{ secret_bmc_username }}"
+    password: "{{ secret_bmc_password }}"
+    category: Manager
+    command: SetNetwotkProtocols
+    network_protocols:
+      SSH:
+        ProtocolEnabled: true
+        Port: 22
+      HTTP:
+        ProtocolEnabled: true
+        Port: 80
+      HTTPS:
+        ProtocolEnabled: true
+        Port: 443
+      IPMI:
+        ProtocolEnabled: true
+        Port: 623
+      KVMIP:
+        ProtocolEnabled: true
+        Port: 17990
+      SNMP:
+        ProtocolEnabled: true
+        Port: 161
+      Oem:
+        Hpe:
+          SNMPTrapPort: 162
+          FederationEnabled: false
+          RemoteSyslogPort: 21011
+          AlertMailSMTPAuthEnabled: false
+          RemoteSyslogEnabled: true
+          AlertMailSMTPSecureEnabled: true
+          AlertMailSMTPPort: 25
+          RemoteSyslogServer: "{{ remote_syslog_server }}"
+          AlertMailEnabled: false
+
+- name: Set Account Services
+  community.general.redfish_info:
+    baseuri: "{{ hostvars[host].bmc_ip_addr }}" 
+    username: "{{ secret_bmc_username }}"
+    password: "{{ secret_bmc_password }}"
+    category: AccountService
+    command: Accounts
+  register: test
+
+- Name: debug
+  debug:
+    var: test
+  

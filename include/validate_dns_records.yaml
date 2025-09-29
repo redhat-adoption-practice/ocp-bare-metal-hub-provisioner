@@ -1,0 +1,31 @@
+- name: "Perform DNS lookup for {{ domain_name }} over nameserver {{ nameserver }}" 
+  ansible.builtin.command:
+    cmd: /usr/bin/dig A {{ domain_name }} @{{ nameserver }}
+  register: a_records
+  changed_when: false
+  ignore_errors: true
+
+- name: "Assert that the domain {{ domain_name }} is not NXDOMAIN on nameserver {{ nameserver }}"
+  ansible.builtin.assert:
+    that:
+      - "'NXDOMAIN' not in a_records.stdout"
+    fail_msg: "The domain {{ domain_name }} does not exists (NXDOMAIN) on nameserver {{ nameserver }}"
+    success_msg: "The domain {{ domain_name }} exists on nameserver {{ nameserver }}"
+
+- name: "Extract IP Address from A record for {{ domain_name }} if available"
+  ansible.builtin.set_fact:
+    extracted_ip: "{{ a_records.stdout | regex_search('ANSWER SECTION:\\n[^\\n]*\\s([0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3}\\.[0-9]{1,3})') | regex_findall('\\b(?:[0-9]{1,3}\\.){3}[0-9]{1,3}\\b') | first }}"
+  when: "'ANSWER SECTION' in a_records.stdout"
+
+- name: "Perform reverse DNS lookup (PTR) for extracted IP {{ extracted_ip }} on nameserver {{ nameserver }}"
+  ansible.builtin.command:
+    cmd: /usr/bin/dig -x {{ extracted_ip }} @{{ nameserver }}
+  when: extracted_ip is defined
+  register: ptr_records
+
+- name: "Assert that PTR record exists for {{ extracted_ip }}"
+  ansible.builtin.assert:
+    that: 
+      - "'ANSWER SECTION' in ptr_records.stdout"
+    fail_msg: "The PTR record for {{ extracted_ip }} is not found in namserver {{ nameserver }}."
+    success_msg: "The PTR record for {{ extracted_ip }} resolves correctly."

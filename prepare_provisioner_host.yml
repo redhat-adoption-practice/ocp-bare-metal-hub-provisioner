@@ -45,23 +45,23 @@
         owner: root
         group: root
 
-    - name: Register provisioner with Red Hat Subscription Manager
-      community.general.redhat_subscription:
-        state: present
-        username: "{{ rhsm_username }}"
-        password: "{{ rhsm_password }}"
-        auto_attach: true
+    - name: Configure connected RPM repositories
+      ansible.builtin.include_tasks: "include/connected_rpm_repositories.yaml"
+      when:
+        - not disconnected_installation
+        - proxy_enabled
 
-    - name: Enable a RHSM repository
-      community.general.rhsm_repository:
-        name:
-          - rhel-9-for-{{ ansible_architecture }}-appstream-rpms
-          - rhel-9-for-{{ ansible_architecture }}-baseos-rpms
+    - name: Configure disconnected RPM repositories
+      ansible.builtin.include_tasks: "include/disconnected_rpm_repositories.yaml"
+      when:
+        - disconnected_installation
+        - not proxy_enabled
 
     - name: Install provisioner host packages
       ansible.builtin.package:
         name: "{{ provisioner_host_packages }}"
         state: installed
+      become: true
 
     - name: Enable and start provisioner host services
       ansible.builtin.service:
@@ -75,9 +75,10 @@
         dest: "{{ item }}"
         state: directory
         mode: "0755"
+        owner: "{{ user_name }}"
+        group: "{{ group_name }}"
       loop:
         - "{{ bin_dir }}"
-        - "{{ config_dir }}"
         - "{{ build_dir }}"
 
     - name: Append '{{ user_name }}' to the libvirt group
@@ -115,145 +116,77 @@
         name: libvirtd
         state: started
         enabled: true
+    
+    - name: Ensure /var/lib/libvirt/images path exists
+      become: true
+      ansible.builtin.file:
+        path: /var/lib/libvirt/images
+        state: directory
+        mode: 0755
+        owner: root
+        group: root
+
+    - name: Check if default pool exists
+      become: true
+      become_user: "{{ user_name }}"
+      ansible.builtin.command:
+        cmd: "sudo virsh pool-info default"
+      register: pool_check
+      ignore_errors: true
 
     - name: Define a libvirt storage pool
       become: true
-      become_user: kni
-      ansible.builtin.command: virsh pool-define-as --name default --type dir --target /var/lib/libvirt/images
+      become_user: "{{ user_name }}"
+      ansible.builtin.command: "sudo virsh pool-define-as --name default --type dir --target /var/lib/libvirt/images"
       args:
         creates: /etc/libvirt/storage/default.xml
+      when: pool_check.rc != 0
 
     - name: Check if the 'default' virsh pool is active
       become: true
-      become_user: kni
+      become_user: "{{ user_name }}"
       ansible.builtin.shell:
-        cmd: "set -o pipefail && virsh pool-info default | grep -q 'State:          running'"
+        cmd: "set -o pipefail && sudo virsh pool-info default | grep  'State:' | awk -F ':' '{print $2}' | tr -d ' '"
       register: pool_status
-      failed_when: pool_status.rc not in [0, 1]
       changed_when: false
-      become: true
 
     - name: Start the 'default' virsh pool
       become: true
-      become_user: kni
-      ansible.builtin.command:
-        cmd: virsh pool-start default
-      when: pool_status.rc == 1
-      become: true
+      become_user: "{{ user_name }}"
+      ansible.builtin.command: 
+        cmd: "sudo virsh pool-start default"
+      when: pool_status.stdout == 'inactive'
 
     - name: Set the libvirt storage pool to autostart
       become: true
-      become_user: kni
+      become_user: "{{ user_name }}"
       community.libvirt.virt_pool:
         name: default
         autostart: true
+ 
+    - name: Set fact for role_counter
+      ansible.builtin.set_fact:
+        role_counter: "{{ hostvars | dict2items | selectattr('value.role', 'defined') | map(attribute='value.role') | community.general.counter }}"
 
-    - name: Generate Butane configuration for NTP configuration - Master Nodes
-      ansible.builtin.template:
-        src: 99-master-chrony-conf-override.bu.j2
-        dest: "{{ config_dir }}/99-master-chrony-conf-override.bu"
-        mode: '0777'
-
-    - name: Process Butane configuration to generate YAML file with NTP configuration - Master Nodes
-      ansible.builtin.command:
-        cmd: butane {{ config_dir }}/99-master-chrony-conf-override.bu -o {{ build_dir }}/99-master-chrony-conf-override.yaml
-      args:
-        creates: "{{ build_dir }}/99-master-chrony-conf-override.yaml"
-
-    - name: Generate Butane configuration for NTP configuration - Worker Nodes
-      ansible.builtin.template:
-        src: 99-worker-chrony-conf-override.bu.j2
-        dest: "{{ config_dir }}/99-worker-chrony-conf-override.bu"
-        mode: '0777'
-
-    - name: Process Butane configuration to generate YAML file with NTP configuration - Worker Nodes
-      ansible.builtin.command:
-        cmd: butane {{ config_dir }}/99-worker-chrony-conf-override.bu -o {{ build_dir }}/99-worker-chrony-conf-override.yaml
-      args:
-        creates: "{{ build_dir }}/99-worker-chrony-conf-override.yaml"
-
-    - name: Run prep tasks for firmware update methods
-      ansible.builtin.include_tasks: "include/firmware/{{ fw_module }}/provisioner_host_prep.yaml"
-      loop: "{{ enabled_firmware_modules }}"
-      loop_control:
-        loop_var: fw_module
+    - name: Print out role_counter.master
+      ansible.builtin.debug:
+        var: role_counter.master
+      when: role_counter.master is defined   
 
     - name: Fetch openshift-install binary
       ansible.builtin.get_url:
         url: "{{ source_urls['installer'] }}"
-        dest: "{{ base_dir }}/openshift-install-linux.tar.gz"
+        dest: "{{ base_dir }}/openshift-baremetal-install"
         mode: "0644"
-      environment:
-        http_proxy: "{{ proxy_url | default(omit) }}"
-        https_proxy: "{{ proxy_url | default(omit) }}"
+      environment: "{{ lookup('vars', 'proxy_env') if proxy_enabled else {} }}"
 
     - name: Fetch openshift client binaries
       ansible.builtin.get_url:
         url: "{{ source_urls['client'] }}"
-        dest: "{{ base_dir }}/openshift-client-linux.tar.gz"
+        dest: "{{ base_dir }}/oc"
         mode: "0644"
-      environment:
-        http_proxy: "{{ proxy_url | default(omit) }}"
-        https_proxy: "{{ proxy_url | default(omit) }}"
+      environment: "{{ lookup('vars', 'proxy_env') if proxy_enabled else {} }}"
 
-    - name: Extract openshift-install
-      ansible.builtin.unarchive:
-        creates: "{ {bin_dir }}/openshift-install"
-        dest: "{{ bin_dir }}"
-        exclude: README.md
-        remote_src: true
-        src: "{{ base_dir }}/openshift-install-linux.tar.gz"
-
-    - name: Extract openshift clients
-      ansible.builtin.unarchive:
-        creates: "{{ bin_dir }}/oc"
-        dest: "{{ bin_dir }}"
-        exclude: README.md
-        remote_src: true
-        src: "{{ base_dir }}/openshift-client-linux.tar.gz"
-
-    - name: Remove tarballs
-      ansible.builtin.file:
-        path: "{{ base_dir }}/{{ item }}"
-        state: absent
-      loop:
-        - "openshift-client-linux.tar.gz"
-        - "openshift-install-linux.tar.gz"
-
-    - name: Pull coreos-installer image (Docker)
-      community.docker.docker_image:
-        source: pull
-        name: "{{ coreos_installer_image }}"
-        state: present
-      when: provisioner_host_container_runtime == "docker"
-      environment:
-        http_proxy: "{{ proxy_url | default(omit) }}"
-        https_proxy: "{{ proxy_url | default(omit) }}"
-
-    - name: Pull coreos-installer image (Podman)
-      containers.podman.podman_image:
-        name: "{{ coreos_installer_image }}"
-        state: present
-      when: provisioner_host_container_runtime == "podman"
-      environment:
-        http_proxy: "{{ proxy_url | default(omit) }}"
-        https_proxy: "{{ proxy_url | default(omit) }}"
-
-    - name: Pull fcct image (Docker)
-      community.docker.docker_image:
-        source: pull
-        name: "{{ fcct_image }}"
-        state: present
-      when: provisioner_host_container_runtime == "docker"
-      environment:
-        http_proxy: "{{ proxy_url | default(omit) }}"
-        https_proxy: "{{ proxy_url | default(omit) }}"
-
-    - name: Pull fcct image (Podman)
-      containers.podman.podman_image:
-        name: "{{ fcct_image }}"
-        state: present
-      when: provisioner_host_container_runtime == "podman"
-      environment:
-        http_proxy: "{{ proxy_url | default(omit) }}"
-        https_proxy: "{{ proxy_url | default(omit) }}"
+    - name: Get the default interface
+      ansible.builtin.set_fact:
+        pub_conn: "{{ ansible_default_ipv4.interface }}"

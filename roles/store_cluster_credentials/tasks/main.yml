@@ -1,0 +1,32 @@
+---
+- name: Ensure files exist
+  ansible.builtin.stat:
+    path: '{{ item }}'
+  loop:
+    - "{{ install_dir }}/kubeadmin-password"
+    - "{{ install_dir }}/kubeconfig"
+  register: file_status
+  until: file_status.stat.exists
+  retries: 30
+  delay: 10
+  changed_when: false
+
+- name: Store KUBECONFIG
+  set_fact:
+    cluster_api: "api.{{ cluster.name }}.{{ cluster.base_dns_domain }}:6443"
+    kubeadmin_password: "{{ lookup('ansible.builtin.file', install_dir + '/kubeadmin-password') }}"
+    kubeconfig_content: "{{ lookup('ansible.builtin.file', install_dir + '/kubeconfig') }}"
+  no_log: true
+
+- name: Store hosted cluster credentials and info
+  community.hashi_vault.vault_kv2_write:
+    auth_method: "token"
+    engine_mount_point: "{{ vault_mount_point }}"
+    token: "{{ vault_write_token }}"
+    url: "{{ vault_url }}"
+    path: "{{ vault_secret_path }}"
+    validate_certs: "{{ vault_validate_certs }}"
+    data:
+      kubeadmin: "{{ kubeadmin_password }}"
+      kubeconfig: "{{ kubeconfig_content }}"
+      api: "{{ cluster_api }}"

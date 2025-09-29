@@ -1,0 +1,71 @@
+- name: Generate Butane configuration for 04016095 LACP Fix - Master Nodes
+  ansible.builtin.template:
+    src: 02-master-lacp-fix.bu.j2
+    dest: "{{ files_dir }}/02-master-lacp-fix.bu"
+    mode: '0777'
+    lstrip_blocks: true
+    trim_blocks: true
+  tags:
+    - butane
+
+- name: Process Butane configuration to generate YAML file with 04016095 LACP Fix - Master Nodes
+  ansible.builtin.command:
+    cmd: "{{ bin_dir }}/butane {{ files_dir }}/02-master-lacp-fix.bu -o {{ openshift_manifests_dir }}/02-master-lacp-fix.yaml"
+  args:
+    creates: "{{ openshift_manifests_dir }}/02-master-lacp-fix.yaml"
+  tags:
+    - butane
+
+- name: Generate Butane configuration for 04016095 LACP Fix - Worker Nodes
+  ansible.builtin.template:
+    src: 02-worker-lacp-fix.bu.j2
+    dest: "{{ files_dir }}/02-worker-lacp-fix.bu"
+    mode: '0777'
+    lstrip_blocks: true
+    trim_blocks: true
+  tags:
+    - butane
+
+- name: Process Butane configuration to generate YAML file with 04016095 LACP Fix - Worker Nodes
+  ansible.builtin.command:
+    cmd: "{{ bin_dir }}/butane {{ files_dir }}/02-worker-lacp-fix.bu -o {{ openshift_manifests_dir }}/02-worker-lacp-fix.yaml"
+  args:
+    creates: "{{ openshift_manifests_dir }}/02-worker-lacp-fix.yaml"
+  tags:
+    - butane
+
+- name: Generate Butane configuration for NTP configuration - Master Nodes
+  ansible.builtin.template:
+    src: 99-master-chrony-conf-override.bu.j2
+    dest: "{{ files_dir }}/99-master-chrony-conf-override.bu"
+    mode: '0777'
+    lstrip_blocks: true
+    trim_blocks: true
+  tags:
+    - butane
+
+- name: Process Butane configuration to generate YAML file with NTP configuration - Master Nodes
+  ansible.builtin.command:
+    cmd: "{{ bin_dir }}/butane {{ files_dir }}/99-master-chrony-conf-override.bu -o {{ openshift_manifests_dir }}/99-master-chrony-conf-override.yaml"
+  args:
+    creates: "{{ openshift_manifests_dir }}/99-master-chrony-conf-override.yaml"
+  tags:
+    - butane
+
+- name: Generate Butane configuration for NTP configuration - Worker Nodes
+  ansible.builtin.template:
+    src: 99-worker-chrony-conf-override.bu.j2
+    dest: "{{ files_dir }}/99-worker-chrony-conf-override.bu"
+    mode: '0777'
+    lstrip_blocks: true
+    trim_blocks: true
+  tags:
+    - butane
+
+- name: Process Butane configuration to generate YAML file with NTP configuration - Worker Nodes
+  ansible.builtin.command:
+    cmd: "{{ bin_dir }}/butane {{ files_dir }}/99-worker-chrony-conf-override.bu -o {{ openshift_manifests_dir }}/99-worker-chrony-conf-override.yaml"
+  args:
+    creates: "{{ openshift_manifests_dir }}/99-worker-chrony-conf-override.yaml"
+  tags:
+    - butane

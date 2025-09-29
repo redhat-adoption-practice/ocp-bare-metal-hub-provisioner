@@ -1,21 +1,21 @@
 - name: Power off server
-  hpilo_boot:
-    host: "{{ilo_host}}"
-    login: "{{ilo_user}}"
-    password: "{{ilo_password}}"
+  community.general.hpilo_boot:
+    host: "{{ bmc_ip_addr }}"
+    login: "{{ secret_bmc_username }}"
+    password: "{{ secret_bmc_password }}"
     state: poweroff
   delegate_to: localhost
 
-- name: Wait 10 seconds for server to power off
-  pause:
-    seconds: 10
+- name: Wait 20 seconds for server to power off
+  ansible.builtin.pause:
+    seconds: 20
 
 - name: Boot server from ISO
-  hpilo_boot:
-    host: "{{ilo_host}}"
-    login: "{{ilo_user}}"
-    password: "{{ilo_password}}"
+  community.general.hpilo_boot:
+    host: "{{ bmc_ip_addr }}"
+    login: "{{ secret_bmc_username }}"
+    password: "{{ secret_bmc_password }}"
     media: cdrom
-    image: "{{provisioner_http_scheme}}://{{provisioner_host_ilo}}:{{provisioner_http_port}}/{{cluster_name}}/boot-isos/isos/{{inventory_hostname}}.iso"
+    image: "{{ provisioner_http_scheme }}://{{ provisioner_server }}:{{ provisioner_http_port }}/{{ cluster.name }}/boot-isos/isos/{{ inventory_hostname }}.iso"
     state: boot_once
   delegate_to: localhost

@@ -1,0 +1,14 @@
+- name: Wait until installation is completed
+  ansible.builtin.command:
+    cmd: "{{ bin_dir }}/openshift-install wait-for install-complete --log-level debug --dir {{ clusterconfigs_dir }}"
+  ignore_errors: true
+
+- name: Wait for console to become available
+  ansible.builtin.uri:
+    url: https://console-openshift-console.apps.{{ cluster.name }}.{{ cluster.base_dns_domain }}
+    validate_certs: false
+  register: console_url
+  until: console_url.status == 200
+  retries: 120
+  delay: 30
+

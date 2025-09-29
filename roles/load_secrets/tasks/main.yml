@@ -1,0 +1,61 @@
+---
+- name: Load secrets from Hashi Vault
+  when: use_hashi_vault
+  block:
+    - set_fact:
+        defined_secrets: []
+
+    - name: Compile list of existing secrets
+      when: lookup('vars', item.name, default=false)
+      loop: "{{ secrets }}"
+      set_fact:
+        defined_secrets: "{{ defined_secrets + [item.name]  | default([]) }}"
+
+    - name: Fail if secrets already exist
+      when: defined_secrets
+      ansible.builtin.fail:
+        msg: "Remove {{ defined_secrets | list }} from ansible vault. Cannot overwrite existing secrets"
+
+    - name: Set temporary vault cert path
+      ansible.builtin.set_fact:
+        hashi_vault_cert_path: tmp_hashi_vault.crt
+
+    - name: Ensure directory exists
+      when: hashi_vault_cert_path | dirname
+      ansible.builtin.file:
+        state: directory
+        path: "{{ hashi_vault_cert_path | dirname }}"
+        mode: '0755'
+        owner: "{{ user_name }}"
+        group: "{{ group_name }}"
+
+    - name: Write hashi vault cert to file
+      ansible.builtin.copy:
+        content: '{{ vault_cert }}'
+        dest: '{{ hashi_vault_cert_path }}'
+        mode: '0644'
+        owner: "{{ user_name }}"
+        group: "{{ group_name }}"
+
+    - name: Loading secrets from hashi vault
+      set_fact:
+        "{{ item.name }}": "{{ lookup('community.hashi_vault.hashi_vault', 'secret=secrets/data/{{ item.path }} token={{ vault_read_token }} url={{ vault_url }} validate_certs=false ca_certs={{ hashi_vault_cert_path }}') }}"
+      loop: "{{ secrets }}"
+      no_log: true
+
+    - name: Remove temporary hashi vault cert file
+      ansible.builtin.file:
+        path: '{{ hashi_vault_cert_path }}'
+        state: absent
+
+- name: Use defaults
+  when: not use_hashi_vault
+  set_fact:
+    "{{ item.name }}": default(lookup('ansible.builtin.vars', item.name))
+  loop: "{{ secrets }}"
+  no_log: true
+
+- name: Print loaded secrets
+  debug:
+    msg: "Loaded {{ item.name }}"
+  loop: "{{ secrets }}"

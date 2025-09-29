@@ -1,0 +1,43 @@
+- name: Get current boot order
+  community.general.redfish_info:
+    category: Systems
+    command: GetBootOrder
+    baseuri: "{{ hostvars[host].bmc_ip_addr }}" 
+    username: "{{ secret_bmc_username }}"
+    password: "{{ secret_bmc_password }}"
+  register: boot_order
+
+- name: Filter boot entries with DisplayName "redhat"
+  ansible.builtin.set_fact:
+    redhat_boot_entries: "{{ boot_order.redfish_facts.boot_order.entries | map('last') | flatten(1) | selectattr('DisplayName', 'equalto', 'redhat') | map(attribute='BootOptionReference') | list }}"
+
+- name: Move "redhat" boot entries to the bootom of boot order
+  ansible.builtin.set_fact:
+    new_boot_order: "{{ boot_order.redfish_facts.boot_order.entries | map('last') | flatten(1) | map(attribute='BootOptionReference') | difference(redhat_boot_entries) + redhat_boot_entries }}"
+
+- name: Set new boot order
+  community.general.redfish_config:
+    category: Systems
+    command: SetBootOrder
+    boot_order: "{{ new_boot_order }}"
+    baseuri: "{{ hostvars[host].bmc_ip_addr }}" 
+    username: "{{ secret_bmc_username }}"
+    password: "{{ secret_bmc_password }}"
+  register: set_boot_order
+
+- name: Get new boot order
+  community.general.redfish_info:
+    category: Systems
+    command: GetBootOrder
+    baseuri: "{{ hostvars[host].bmc_ip_addr }}" 
+    username: "{{ secret_bmc_username }}"
+    password: "{{ secret_bmc_password }}"
+  register: get_boot_order
+
+- name: Ensure server is Poweroff
+  community.general.hpilo_boot:
+    host: "{{ hostvars[host].bmc_ip_addr }}"
+    login: "{{ secret_bmc_username }}"
+    password: "{{ secret_bmc_password }}"
+    state: poweroff
+

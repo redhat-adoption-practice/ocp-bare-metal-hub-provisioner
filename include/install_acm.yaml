@@ -1,0 +1,77 @@
+---
+- name: Patch cluster OperatorHub
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', manifests_dir + '/operatorhub.yml') }}"
+    kubeconfig: "{{ clusterconfigs_dir }}/auth/kubeconfig"
+    apply: true
+
+- name: Apply CatalogSources
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', item) }}"
+    kubeconfig: "{{ clusterconfigs_dir }}/auth/kubeconfig"
+    apply: true
+  loop:
+    - "{{ manifests_dir + '/cs-redhat-operator-index.yml' }}"
+    - "{{ manifests_dir + '/cs-certified-operator-index.yml' }}"
+    - "{{ manifests_dir + '/cs-community-operator-index.yml' }}"
+
+- name: Apply ImageContentSourcePolicy
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', manifests_dir + '/imagecontentsourcepolicy.yml') }}"
+    kubeconfig: "{{ clusterconfigs_dir }}/auth/kubeconfig"
+    apply: true
+
+- name: Apply Configmaps
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', item) }}"
+    kubeconfig: "{{ clusterconfigs_dir }}/auth/kubeconfig"
+    apply: true
+  loop:
+    - "{{ manifests_dir + '/configmap-01.yml' }}"
+    - "{{ manifests_dir + '/configmap-02.yml' }}"
+
+- name: Apply ACM Namespace
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', manifests_dir + '/namespace-acm.yml') }}"
+    kubeconfig: "{{ clusterconfigs_dir }}/auth/kubeconfig"
+    apply: true
+
+- name: Apply ACM OperatorGroup
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', manifests_dir + '/operatorgroup-acm.yml') }}"
+    kubeconfig: "{{ clusterconfigs_dir }}/auth/kubeconfig"
+    apply: true
+
+- name: Apply ACM Subscription
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', manifests_dir + '/subscription-acm.yml') }}"
+    kubeconfig: "{{ clusterconfigs_dir }}/auth/kubeconfig"
+    apply: true
+    wait: true
+    wait_condition: 
+      type: CatalogSourcesUnhealthy 
+      status: "False"
+    wait_timeout: 300
+
+- name: Pause for 6 minutes to wait for the subscription ready
+  ansible.builtin.pause:
+    minutes: 6
+
+- name: Apply Multiclusterhub
+  kubernetes.core.k8s:
+    state: present
+    definition: "{{ lookup('file', manifests_dir + '/multiclusterhub.yml') }}"
+    kubeconfig: "{{ clusterconfigs_dir }}/auth/kubeconfig"
+    apply: true
+    wait: true
+    wait_condition: 
+      type: Complete
+      status: "True"
+    wait_timeout: 600

@@ -1,0 +1,45 @@
+variant: openshift
+version: {{ ocp_version_maj_min }}.0
+metadata:
+  name: 99-worker-chrony-conf-override
+  labels:
+    machineconfiguration.openshift.io/role: worker
+storage:
+  files:
+    - path: /etc/chrony.conf
+      mode: 0644
+      overwrite: true
+      contents:
+        inline: |
+          # Use public servers from the pool.ntp.org project.
+          # Please consider joining the pool (https://www.pool.ntp.org/join.html).
+
+          # The Machine Config Operator manages this file
+{% for ntp_server in ntp_servers %}
+          server {{ ntp_server }} iburst
+{% endfor %}
+{% for master_count in range(0,role_counter.master)  %}
+          server openshift-master-{{ master_count }}.{{ cluster.name }}.{{ cluster.base_dns_domain }} iburst
+{% endfor %}
+
+          stratumweight 0
+          driftfile /var/lib/chrony/drift
+          rtcsync
+          makestep 10 3
+          bindcmdaddress 127.0.0.1
+          bindcmdaddress ::1
+          keyfile /etc/chrony.keys
+          commandkey 1
+          generatecommandkey
+          noclientlog
+          logchange 0.5
+          logdir /var/log/chrony
+
+          # Configure the control plane nodes to serve as local NTP servers
+          # for all compute nodes, even if they are not in sync with an
+          # upstream NTP server.
+
+          # Allow NTP client access from the local network.
+          allow all
+          # Serve time even if not synchronized to a time source.
+          local stratum 3 orphan

@@ -1,13 +1,18 @@
-# OpenShift Hybrid Ansible
+# OCP Bare-metal Hub Provisioner
 
-This repostiory contains an Ansible-based framework for deploying and updating
-OpenShift clusters using User-Provisioned Infrastructure (UPI) across multiple platforms.
+Automation for preparing for and provisioning Red Hat OpenShift Container Platform hub clusters on bare metal.
 
-Currently, the supported platforms are vSphere, Dell iDRAC, and HPE iLO with the assumption that
-control plane nodes will run on vSphere and worker nodes will be a mix of metal and vSphere machines.
+## Tested Hardware
 
-## Legal Stuff
+* Dell iDRAC 
+* HPE iLO
 
-All protectable content in this repository is Copyright 2023 by Red Hat and contributors
-and is made available under the Apache License, Version 2.0. A complete copy of the
-license is available in the LICENSE file.
+## Instructions
+
+1. ssh to bare-metal host to be used as provisioner
+   * host must be bare-metal or support nested virtulization
+2. prepare provisioner node network
+    ```
+    ./utils/create_baremetal_network_bridge.sh PUBLIC_CONNECTION_NAME
+    ```
+3. TODO
